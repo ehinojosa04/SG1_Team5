@@ -21,46 +21,50 @@ class Inverter:
         
         homeConsumption = 0
         batteryNetFlow = 0
-        gridExport = 0
+        gridNetFlow = 0
         loss = 0
 
         status = ""
         
         match (CHARGE_PRIORITY):
             case PRIORITY_OPTIONS.LOAD:
-                total = real_generation
-                if load >= total:
-                  status = "Insufficient input to satisfy load"
+                solar_to_home = min(load, real_generation)
+                remaining_solar = real_generation - solar_to_home
+                remaining_load = load - solar_to_home
+                
+                homeConsumption = solar_to_home
 
-                  homeConsumption += total
-                  
-                  delta = load - real_generation
+                if remaining_load > 0:
+                    battery_to_home = min(load, self.battery.level)
+                    if battery_to_home > 0:
+                        self.battery.storage.get(battery_to_home)
+                        
+                        batteryNetFlow -= battery_to_home
+                        
+                        homeConsumption += battery_to_home
 
-                  if (self.battery.level > delta):
-                      status += ", pulling from battery"
-                      self.battery.storage.get(delta)
-                      homeConsumption += delta
-                      batteryNetFlow -= delta
+                        remaining_load -= battery_to_home
+
+                    if remaining_load > 0:
+                        gridNetFlow -= remaining_load
+                        homeConsumption += remaining_load
                 
                 else:
                     homeConsumption = load
-                    total -= load
 
-                    status = "Load covered"
+                    if remaining_solar > 0:
+                        battery_charge = min(self.battery.remainingCharge, remaining_solar)
+                        if battery_charge > 0:
+                            self.battery.storage.put(battery_charge)
+                            batteryNetFlow += battery_charge
 
-                    if self.battery.remainingCharge > 0:
-                        status += ", charging battery"
-                        delta = min(total, self.battery.remainingCharge)
-                        self.battery.storage.put(delta)
-                        total -= delta
-                        batteryNetFlow += delta
+                            remaining_solar -= battery_charge
+
+                    if remaining_solar > 0:
+                        gridNetFlow += min(GRID_CONSTRAINT, remaining_solar)
+                        loss = remaining_solar - gridNetFlow
+
                     
-                    if total > 0:
-                        status += ", battery charged, exporting to grid"
-                        delta = min(GRID_CONSTRAINT, total)
-                        gridExport = delta
-                        total -= delta
-                        loss += total
 
         
-        print(f"Inverter update: {status}. Home consumption: {homeConsumption} | Battery net flow: {batteryNetFlow} | Grid export: {gridExport} | Loss: {loss}")
+        print(f"Inverter update: {status}. Home consumption: {homeConsumption:.2f} | Battery net flow: {batteryNetFlow:.2f} | Grid net flow: {gridNetFlow:.2f} | Loss: {loss:.2f}")
