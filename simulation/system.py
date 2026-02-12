@@ -23,7 +23,7 @@ def Simulate(env: Environment, weather: Weather, panel: Panel, home: Home, inver
         
         if current_hour == 0:
             weather.update(dt)
-            print(f"Weather update for the day: Cloud coverage is {weather.cloud_coverage}")
+            print(f"Weather update: Weather is {weather.weather}, Cloud coverage is {weather.cloud_coverage}")
 
         panel.update(weather.cloud_coverage)
         home.update()

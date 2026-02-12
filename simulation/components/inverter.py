@@ -35,7 +35,8 @@ class Inverter:
                 homeConsumption = solar_to_home
 
                 if remaining_load > 0:
-                    battery_to_home = min(load, self.battery.level)
+                    battery_to_home = min(remaining_load, self.battery.availableEnergy)
+                    
                     if battery_to_home > 0:
                         self.battery.storage.get(battery_to_home)
                         
