@@ -1,5 +1,5 @@
 from simpy import Environment
-from config import MINUTES_PER_TICK, SIMULATION_DAYS
+from config import MINUTES_PER_TICK, SIMULATION_DAYS, DATE_OF_SIMULATION
 
 from components.battery import Battery
 from components.panel import Panel
@@ -8,21 +8,34 @@ from components.inverter import Inverter
 from components.grid import Grid
 from components.home import Home
 
+from datetime import datetime, timedelta
+
 import math
 
 def Simulate(env: Environment, weather: Weather, panel: Panel, home: Home, inverter: Inverter, battery: Battery, grid: Grid):
+    dt = datetime.strptime(DATE_OF_SIMULATION, "%d/%m/%Y")
+    print(dt)
+
     while True:
-        yield env.timeout(MINUTES_PER_TICK / 60)
+        current_hour = env.now % 24
         print("----------------------------")
-        print(f"Time: Day {env.now//24} {math.floor(env.now%24)} hrs {((env.now%24)%1) * 60} mins")
-        weather.update()
+        print(dt)
+        
+        if current_hour == 0:
+            weather.update(dt)
+            print(f"Weather update for the day: Cloud coverage is {weather.cloud_coverage}")
+
         panel.update(weather.cloud_coverage)
         home.update()
         inverter.update(panel.generation, home.totalLoad)
         battery.update()
         grid.update()
+        
+        dt+=timedelta(minutes=MINUTES_PER_TICK)
+        yield env.timeout(MINUTES_PER_TICK / 60)
 
 def main() -> None:
+    print()
     env = Environment()
 
     battery = Battery(env, initial_charge=0)
