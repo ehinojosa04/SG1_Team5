@@ -115,14 +115,11 @@ class Inverter:
                 home_served += rem_load
 
         elif self.priority == PRIORITY_OPTIONS.PRODUCE:
-            solar_to_home = min(load, real_gen)
-            home_served = solar_to_home
-            rem_gen = real_gen - solar_to_home
-            rem_load = load - solar_to_home 
+            solar_to_grid = min(self.grid.remainingExport, real_gen)
+            grid_flow += solar_to_grid
+            rem_gen = real_gen - solar_to_grid
             
             export = min(GRID_CONSTRAINT, rem_gen)
-            grid_flow += export
-            rem_gen -= export
             
             if rem_gen > 0.001:
                 energia_a_guardar = rem_gen * ROUND_TRIP_EFFICIENCY
@@ -131,9 +128,16 @@ class Inverter:
                     self.battery.storage.put(guardar_real)
                     batt_flow += guardar_real
             
-            if rem_load > 0.001: 
-                grid_flow -= rem_load
-                home_served += rem_load
+            solar_to_home = min(load, rem_gen)
+            rem_load = load
+            if(solar_to_home > 0.001):
+                rem_load -= rem_gen
+                home_served = solar_to_home
+                rem_load = load - solar_to_home
+            grid_flow -= rem_load
+            home_served += rem_load    
+            
+            
 
         self.metrics["total_load_served"] += home_served
         if grid_flow > 0: self.metrics["total_grid_export"] += grid_flow
