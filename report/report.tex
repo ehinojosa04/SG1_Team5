@@ -1,0 +1,190 @@
+
+\documentclass[paper=a4, fontsize=11pt]{scrartcl} % A4 paper and 11pt font size
+
+\usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
+\usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
+\usepackage[english]{babel} % English language/hyphenation
+\usepackage{amsmath,amsfonts,amsthm} % Math packages
+
+\usepackage{lipsum} % Used for inserting dummy 'Lorem ipsum' text into the template
+
+\usepackage{sectsty} % Allows customizing section commands
+\allsectionsfont{\centering \normalfont\scshape} % Make all sections centered, the default font and small caps
+
+\usepackage{fancyhdr} % Custom headers and footers
+\pagestyle{fancyplain} % Makes all pages in the document conform to the custom headers and footers
+\fancyhead{} % No page header - if you want one, create it in the same way as the footers below
+\fancyfoot[L]{} % Empty left footer
+\fancyfoot[C]{} % Empty center footer
+\fancyfoot[R]{\thepage} % Page numbering for right footer
+\renewcommand{\headrulewidth}{0pt} % Remove header underlines
+\renewcommand{\footrulewidth}{0pt} % Remove footer underlines
+\setlength{\headheight}{13.6pt} % Customize the height of the header
+
+\numberwithin{equation}{section} % Number equations within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{figure}{section} % Number figures within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{table}{section} % Number tables within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs - comment this line for an assignment with lots of text
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\title{	
+\normalfont \normalsize 
+\textsc{Universidad Panamericana, Graphical Simulation} \\ [25pt] % Your university, school and/or department name(s)
+\horrule{0.5pt} \\[0.4cm] % Thin top horizontal rule
+\huge Green Grid Simulation \\ % The assignment title
+\horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+
+\author{Emiliano Hinojosa Guzmán \\ Diego Amín Pallares Hernandez \\ José Salcedo Uribe} % Your name
+
+\date{\normalsize\today} % Today's date or a custom date
+
+\begin{document}
+
+\maketitle % Print the title
+
+\section{Design choices, challenges, and future improvements}
+
+\textbf{Design choices.}  
+The simulation was designed as a modular digital twin where each physical subsystem is represented by an independent component (\texttt{panel}, \texttt{battery}, \texttt{home}, \texttt{weather}, \texttt{inverter}, and \texttt{grid}). A central SimPy process (\texttt{Simulate}) advances the system in hourly ticks and updates all components in a fixed order, while the inverter acts as the energy orchestration layer. This structure allowed us to compare strategies (\texttt{LOAD\_PRIORITY}, \texttt{CHARGE\_PRIORITY}, \texttt{PRODUCE\_PRIORITY}) without rewriting the rest of the model. We also centralized all tunable parameters in \texttt{config.py} to make experiments reproducible and easy to modify.
+
+\textbf{Main challenges faced during implementation.}
+\begin{itemize}
+    \item \textbf{Race conditions and state freshness across components.}  
+    One of the hardest issues was guaranteeing that each module used the latest available information at every tick (for example, weather $\rightarrow$ panel generation $\rightarrow$ inverter dispatch $\rightarrow$ battery level). We addressed this by keeping a strict update sequence inside the simulation loop and logging state variables every step to validate consistency.
+    
+    \item \textbf{Keeping the architecture clean and readable.}  
+    As strategy logic and failure handling grew, the risk of mixing responsibilities increased. We mitigated this by preserving clear component boundaries, keeping shared constants in \texttt{config.py}, and using explicit metric dictionaries for reporting.
+    
+    \item \textbf{Numerical thresholds in \texttt{inverter.update()}.}  
+    SimPy and floating-point operations occasionally treated very small values as effectively zero, which caused unstable behavior in branch logic. To stabilize decisions, we introduced small tolerances (for example checks such as \texttt{> 0.001}) before charging, discharging, importing, or exporting.
+\end{itemize}
+
+\textbf{Potential improvements for future iterations.}
+\begin{itemize}
+    \item Refactor \texttt{inverter.update()} into smaller helper methods per strategy to reduce complexity and simplify testing.
+    \item Add automated unit tests and scenario regression tests (including edge cases for near-zero energy flows and inverter failures).
+    \item Introduce stochastic household demand profiles instead of constant base load to better represent real consumption behavior.
+    \item Run Monte Carlo experiments across random seeds and seasons, then report confidence intervals rather than single-run values.
+    \item Improve battery realism by explicitly enforcing a minimum SoC floor in dispatch logic and modeling degradation over time.
+\end{itemize}
+
+\section{Answers to the expected output questions}
+
+The following results were obtained from a 30-day simulation using the current configuration in \texttt{simulation/config.py}, with import cost $=0.75$ and export credit $=0.90$ per kWh.
+
+\begin{enumerate}
+    \item \textbf{Average battery state of charge over the month.}  
+    The average SoC is \textbf{71.22\%} (default run with \texttt{LOAD\_PRIORITY}).
+
+    \item \textbf{How often the battery reaches full or empty state.}  
+    The battery is at full charge for \textbf{143 hours} and at empty state for \textbf{12 hours}.
+
+    \item \textbf{Total solar energy generated over the month.}  
+    Total solar generation is \textbf{610.92 kWh}.
+
+    \item \textbf{Total household energy consumed over the month.}  
+    Total household consumption is \textbf{340.00 kWh}.
+
+    \item \textbf{Energy imported from / exported to the grid.}  
+    The system imports \textbf{25.50 kWh} and exports \textbf{254.76 kWh}.
+
+    \item \textbf{Inverter failures and total downtime.}  
+    The inverter fails \textbf{10 times} with a total downtime of \textbf{40 hours}.
+
+    \item \textbf{Average cloud coverage during the month.}  
+    Average cloud coverage is \textbf{0.4266} (approximately \textbf{42.66\%}).
+
+    \item \textbf{Peak load demand observed.}  
+    Peak load demand is \textbf{500 W}.
+
+    \item \textbf{Frequency of unmet load events.}  
+    Unmet load occurs \textbf{0 times} in the default monthly run.
+
+    \item \textbf{Battery system efficiency (round-trip losses).}  
+    The configured round-trip battery efficiency is \textbf{95\%}, implying roughly \textbf{5\%} round-trip energy loss.
+
+    \item \textbf{Effect of energy management strategy on performance.}  
+    \begin{itemize}
+        \item \texttt{LOAD\_PRIORITY}: Balanced behavior, net balance \textbf{+210.16}, no unmet load.
+        \item \texttt{CHARGE\_PRIORITY}: Very high SoC (\textbf{98.65\%}) but heavy imports (\textbf{211.90 kWh}), net balance \textbf{-158.92}.
+        \item \texttt{PRODUCE\_PRIORITY}: Highest exports (\textbf{460.32 kWh}) and highest net balance, but battery stays near empty and unmet load increases (\textbf{19} events).
+    \end{itemize}
+
+    \item \textbf{Most cost-effective strategy at given tariffs.}  
+    With export credit $0.90$ and import cost $0.75$ per kWh, \textbf{\texttt{PRODUCE\_PRIORITY}} is most cost-effective, with net balance \textbf{+257.24}.
+
+    \item \textbf{Impact of cloud coverage on solar generation and battery usage.}  
+    Increasing cloud coverage reduces generation and export, and lowers SoC:
+    \begin{itemize}
+        \item Clear ($0.0$--$0.2$): $\sim$\textbf{1402.68 Wh/h} solar, SoC $\sim$\textbf{77.96\%}.
+        \item Partly cloudy ($0.2$--$0.6$): $\sim$\textbf{950.41 Wh/h} solar, SoC $\sim$\textbf{72.14\%}.
+        \item Mostly cloudy ($0.6$--$0.8$): $\sim$\textbf{519.26 Wh/h} solar, SoC $\sim$\textbf{73.45\%}.
+        \item Overcast ($0.8$--$1.0$): $\sim$\textbf{176.94 Wh/h} solar, SoC $\sim$\textbf{44.80\%}, and near-zero export.
+    \end{itemize}
+
+    \item \textbf{Seasonal performance (summer vs winter, etc.).}  
+    \begin{itemize}
+        \item Summer performs best: \textbf{779.77 kWh} solar, average cloud \textbf{0.259}, net balance \textbf{+358.44}.
+        \item Spring and fall are intermediate: net balances \textbf{+210.16} and \textbf{+172.04}.
+        \item Winter performs worst: \textbf{365.91 kWh} solar, average cloud \textbf{0.662}, net balance \textbf{+2.43}, and \textbf{6} unmet events.
+    \end{itemize}
+
+    \item \textbf{Average duration of inverter failures and impact on energy availability.}  
+    The average failure duration is \textbf{4.0 hours} per event, matching the configured failure duration. These outages increase grid dependence and reduce effective local energy availability, with stronger negative effects during low-generation conditions (especially winter).
+\end{enumerate}
+
+\section{Development Log}
+
+This section summarizes day-to-day progress based on \texttt{git log}. In the repository history, \texttt{Valkary} corresponds to \textbf{José Salcedo Uribe}.
+
+\subsection*{2026-02-11}
+\textbf{Participant: Emiliano Hinojosa}
+\begin{itemize}
+    \item Created the initial project baseline (\texttt{b92af01}).
+    \item Implemented the first working structure of the simulator with core components: battery, grid, home, inverter, panel, weather, and \texttt{system.py}.
+    \item Added initial configuration and repository ignores needed for the first runnable version.
+\end{itemize}
+
+\subsection*{2026-02-12}
+\textbf{Participant: Emiliano Hinojosa}
+\begin{itemize}
+    \item Implemented weather modeling and integration with panel/system updates (\texttt{9003769}).
+    \item Improved battery usage behavior in dispatch logic (\texttt{ffe0389}).
+    \item Updated related configuration and generation-flow files to keep the model coherent.
+\end{itemize}
+
+\subsection*{2026-02-16}
+\textbf{Participant: Diego Amín Pallares Hernandez}
+\begin{itemize}
+    \item Refined and cleaned core simulation logic across \texttt{inverter.py}, \texttt{battery.py}, \texttt{system.py}, and strategy comparison (\texttt{943aa60}).
+    \item Adjusted configuration and numerical behavior to improve stability and readability.
+\end{itemize}
+
+\subsection*{2026-02-16}
+\textbf{Participant: José Salcedo Uribe (\texttt{Valkary})}
+\begin{itemize}
+    \item Updated project documentation and setup artifacts (\texttt{README.md}, \texttt{requirements.txt}) and stopped ignoring runtime configuration (\texttt{6c6c709}).
+    \item Added helper automation for extracting and aggregating simulation metrics (\texttt{simulation/ sym\_results.py}) to support analysis/reporting (\texttt{8bc202d}).
+\end{itemize}
+
+\section{Conclusions}
+
+This project delivered a functional digital twin of a residential solar-battery-grid system with measurable technical and economic outputs. To make each team member's contribution explicit, the final conclusions are separated below.
+
+\textbf{Emiliano Hinojosa}
+My main contribution was building the software foundation of the project. I designed the overall architecture and implemented the minimal viable simulator, establishing the component interactions and strategy framework that made the later analysis possible. My goal was to turn the project requirements into a working and extensible system.
+
+\textbf{Diego Amín Pallares Hernandez}
+My main contribution was improving code quality and simulation robustness. I cleaned and organized key parts of the codebase and introduced practical thresholds in numerical decisions, especially in inverter logic where near-zero floating-point values could cause unstable behavior. This made the simulation more reliable and easier to maintain.
+
+\textbf{José Salcedo Uribe}
+My main contribution was reporting and result extraction. I developed helper scripts to gather and structure the most relevant metrics and transformed those outputs into clear written analysis for the report. My work ensured the technical results were well documented, interpretable, and ready for presentation.
+
+\end{document}
