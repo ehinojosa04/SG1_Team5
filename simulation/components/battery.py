@@ -11,10 +11,6 @@ class Battery:
         print(f"Battery update: {self.batteryPercentage:.2f}% | {self.storage.level:.2f} Wh")
 
     @property
-    def availableEnergy(self):
-        return max(0, self.level - self.min_charge_limit)
-
-    @property
     def level(self):
         return self.storage.level
 

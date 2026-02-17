@@ -1,9 +1,10 @@
 import random
+from components.grid import Grid
 from config import (PRIORITY_OPTIONS, GRID_CONSTRAINT, INVERTER_CLIPPING, 
                     INVERTER_FAIL_PROB, INVERTER_FAIL_DURATION, ROUND_TRIP_EFFICIENCY)
 
 class Inverter:
-    def __init__(self, env, panel, battery, home, grid, priority):
+    def __init__(self, env, panel, battery, home, grid: Grid, priority):
         self.env = env
         self.panel, self.battery, self.home, self.grid = panel, battery, home, grid
         self.priority = priority
@@ -84,7 +85,8 @@ class Inverter:
 
            
                 if rem_gen > 0.001:
-                    export = min(GRID_CONSTRAINT, rem_gen)
+                    export = min(self.grid.remainingExport, rem_gen)
+                    self.grid.exportLimit.put(export)
                     grid_flow += export
                     loss = rem_gen - export
        
