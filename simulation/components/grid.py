@@ -7,7 +7,8 @@ class Grid:
 
     def update(self, day):
         if day == 1:
-            self.exportLimit.get(self.exportLimit.level)
+            if self.exportLimit.level > 0:
+                self.exportLimit.get(self.exportLimit.level)
 
     @property
     def remainingExport(self):

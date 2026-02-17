@@ -17,7 +17,8 @@ ROUND_TRIP_EFFICIENCY = 0.95        # Battery round-trip efficiency (fraction, 0
 # ── Inverter ─────────────────────────────────────────────────────────────────
 INVERTER_CLIPPING = 4000            # Max inverter output in W (generation above this is clipped)
 INVERTER_FAIL_PROB = 0.01           # Probability of inverter failure per tick (0.0–1.0)
-INVERTER_FAIL_DURATION = 4          # Duration of an inverter failure in ticks (hours)
+MIN_INVERTER_FAIL_DURATION = 4
+MAX_INVERTER_FAIL_DURATION = 72          # Duration of an inverter failure in ticks (hours)
 
 # ── Grid ─────────────────────────────────────────────────────────────────────
 GRID_CONSTRAINT = 20000             # Max grid export limit in W

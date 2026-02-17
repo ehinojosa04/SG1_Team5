@@ -1,7 +1,7 @@
 import random
 from components.grid import Grid
 from config import (PRIORITY_OPTIONS, GRID_CONSTRAINT, INVERTER_CLIPPING, 
-                    INVERTER_FAIL_PROB, INVERTER_FAIL_DURATION, ROUND_TRIP_EFFICIENCY)
+                    INVERTER_FAIL_PROB, MIN_INVERTER_FAIL_DURATION, MAX_INVERTER_FAIL_DURATION, ROUND_TRIP_EFFICIENCY, MINUTES_PER_TICK)
 
 class Inverter:
     def __init__(self, env, panel, battery, home, grid: Grid, priority):
@@ -21,16 +21,19 @@ class Inverter:
             "total_losses": 0.0, "unmet_load_events": 0
         }
 
-    def update(self, generation, load):
+    def updateCondition(self):
         if not self.is_failed and random.random() < INVERTER_FAIL_PROB:
             self.is_failed = True
             self.fail_count += 1
-            self.downtime_remaining = INVERTER_FAIL_DURATION
+            self.downtime_remaining = random.randint(MIN_INVERTER_FAIL_DURATION, MAX_INVERTER_FAIL_DURATION)
 
+    def update(self, generation, load):
         if self.is_failed:
-            self.total_downtime += 1
-            self.downtime_remaining -= 1
-            if self.downtime_remaining <= 0: self.is_failed = False
+            self.total_downtime += MINUTES_PER_TICK / 60
+            self.downtime_remaining -= MINUTES_PER_TICK / 60
+            if self.downtime_remaining <= 0: 
+                self.is_failed = False
+                self.downtime_remaining = 0
             
             self.metrics["total_grid_import"] += load
             self.metrics["unmet_load_events"] += 1
@@ -86,7 +89,8 @@ class Inverter:
            
                 if rem_gen > 0.001:
                     export = min(self.grid.remainingExport, rem_gen)
-                    self.grid.exportLimit.put(export)
+                    if export > 0:
+                        self.grid.exportLimit.put(export)
                     grid_flow += export
                     loss = rem_gen - export
        

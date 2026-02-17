@@ -16,6 +16,8 @@ def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats
     while True:
         if env.now % 24 == 0:
             weather.update(dt)
+            inverter.updateCondition()
+            grid.update(dt.day)
 
         panel.update(weather.cloud_coverage)
         home.update()
@@ -26,8 +28,8 @@ def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats
         stats["cloud_history"].append(weather.cloud_coverage)
         stats["load_history"].append(home.totalLoad)
         
-        if battery.batteryPercentage >= 99.9: stats["full_hours"] += 1
-        if battery.batteryPercentage <= 0.1: stats["empty_hours"] += 1
+        if battery.batteryPercentage >= 99.9: stats["full_hours"] += MINUTES_PER_TICK / 60
+        if battery.batteryPercentage <= 0.1: stats["empty_hours"] += MINUTES_PER_TICK / 60
         
         unmet = max(0, home.totalLoad - (panel.generation + battery.level)) if inverter.is_failed else 0
         if unmet > 0: stats["unmet_events"] += 1
@@ -55,7 +57,7 @@ def main() -> None:
     weather = Weather(env)
     panel = Panel(env, battery, weather)
     home = Home(env)
-    grid = Grid()
+    grid = Grid(env)
     inverter = Inverter(env, panel, battery, home, grid, CHARGE_PRIORITY)
     
   
