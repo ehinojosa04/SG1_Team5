@@ -6,8 +6,8 @@ from components.panel import Panel
 from components.weather import Weather
 from components.inverter import Inverter
 from components.grid import Grid
-from components.home import Home
-from system import Simulate 
+from simulation.components.loadModel import LoadModel
+from simulation.simulation import Simulate 
 
 def run_scenario(strategy_name, priority_enum):
     """
@@ -21,7 +21,7 @@ def run_scenario(strategy_name, priority_enum):
     battery = Battery(env, initial_charge=0, capacity=BATTERY_CAPACITY)
     weather = Weather(env)
     panel = Panel(env, battery, weather)
-    home = Home(env)
+    home = LoadModel(env)
     grid = Grid(env)
     
     inverter = Inverter(env, panel, battery, home, grid, priority_enum)

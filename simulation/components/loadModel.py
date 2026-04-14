@@ -1,6 +1,4 @@
-from config import BASE_LOAD, APPLIANCES, MAX_PEAK_LOAD, PEAK_USAGE_HOUR_START, PEAK_USAGE_HOUR_END
-import random
-
+from config import APPLIANCES
 import random
 
 class Appliance:
@@ -16,9 +14,12 @@ class Appliance:
         
         return self.power_kW if self.is_on else 0.0
 
-class Home:
-    def __init__(self, env) -> None:
+class LoadModel:
+    def __init__(self, env, base_load, peak_load, consumption_multiplier) -> None:
         self.env = env
+        self.base_load = base_load
+        self.peak_load = peak_load
+        self.consumption_multiplier = consumption_multiplier
         self.totalLoad = 0
         self.appliances = []
 
@@ -30,10 +31,10 @@ class Home:
         self.appliances.sort(key=lambda x: x.power_kW)
 
     def update(self, t):
-        currentLoad = BASE_LOAD
+        currentLoad = self.base_load
 
         for appliance in self.appliances:
-            if currentLoad + appliance.power_kW > MAX_PEAK_LOAD:
+            if currentLoad + appliance.power_kW > self.peak_load:
                 continue 
 
             currentLoad += appliance.check_usage(t)

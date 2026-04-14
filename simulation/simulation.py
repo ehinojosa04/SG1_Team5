@@ -8,7 +8,8 @@ from components.panel import Panel
 from components.weather import Weather
 from components.inverter import Inverter
 from components.grid import Grid
-from components.home import Home
+from components.houseUnit import HouseUnit
+from components.loadModel import LoadModel
 
 def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats):
     dt = datetime.strptime(DATE_OF_SIMULATION, "%d/%m/%Y")
@@ -58,14 +59,19 @@ def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats
 def main() -> None:
     print(f"\n--- GREEN GRID DIGITAL TWIN | INICIANDO SIMULACIÓN MENSUAL ---")
     env = Environment()
+    houses = []
     
+    for template in NEIGHBORHOOD_CONFIG:
+        for i in range(template["count"]):
+            houses.append(HouseUnit(env, f"{template['type']}_{template['wealth']}_{i}", template['type'], template['wealth'], template["charge_priority"]))
 
+    '''
     battery = Battery(env, initial_charge=0, capacity=BATTERY_CAPACITY)
     weather = Weather(env)
     panel = Panel(env, battery, weather)
-    home = Home(env)
+    loadModel = LoadModel(env)
     grid = Grid(env)
-    inverter = Inverter(env, panel, battery, home, grid, CHARGE_PRIORITY)
+    inverter = Inverter(env, panel, battery, loadModel, grid, CHARGE_PRIORITY)
     
   
     bitacora = []
@@ -75,7 +81,7 @@ def main() -> None:
     }
     
 
-    env.process(Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats))
+    env.process(Simulate(env, weather, panel, loadModel, inverter, battery, grid, bitacora, stats))
     env.run(until=SIMULATION_DAYS * 24)
 
     
@@ -117,6 +123,7 @@ def main() -> None:
         writer.writerows(bitacora)
     
     print(f"\n>>> Simulation finished. Log with {len(bitacora)} records saved.")
+    '''
 
 if __name__ == '__main__':
     main()

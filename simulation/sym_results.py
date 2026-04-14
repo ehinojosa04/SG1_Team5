@@ -13,14 +13,14 @@ if str(SIM_DIR) not in sys.path:
     sys.path.insert(0, str(SIM_DIR))
 
 import simpy
-import system
+import simulation.simulation as simulation
 import config
 from components.battery import Battery
 from components.panel import Panel
 from components.weather import Weather
 from components.inverter import Inverter
 from components.grid import Grid
-from components.home import Home
+from simulation.components.loadModel import LoadModel
 
 
 def run_scenario(priority, start_date, seed=42, days=None):
@@ -33,7 +33,7 @@ def run_scenario(priority, start_date, seed=42, days=None):
     battery = Battery(env, initial_charge=0, capacity=config.BATTERY_CAPACITY)
     weather = Weather(env)
     panel = Panel(env, battery, weather)
-    home = Home(env)
+    home = LoadModel(env)
     grid = Grid(env)
     inverter = Inverter(env, panel, battery, home, grid, priority)
 
@@ -43,14 +43,14 @@ def run_scenario(priority, start_date, seed=42, days=None):
         'full_hours': 0, 'empty_hours': 0, 'unmet_events': 0,
     }
 
-    old_date = system.DATE_OF_SIMULATION
+    old_date = simulation.DATE_OF_SIMULATION
     try:
-        system.DATE_OF_SIMULATION = start_date
+        simulation.DATE_OF_SIMULATION = start_date
         with contextlib.redirect_stdout(io.StringIO()):
-            env.process(system.Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats))
+            env.process(simulation.Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats))
             env.run(until=days * 24)
     finally:
-        system.DATE_OF_SIMULATION = old_date
+        simulation.DATE_OF_SIMULATION = old_date
 
     imp_kwh = inverter.metrics['total_grid_import'] / 1000
     exp_kwh = inverter.metrics['total_grid_export'] / 1000

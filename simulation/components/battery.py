@@ -1,5 +1,5 @@
 from simpy import Environment, Container
-from config import BATTERY_CAPACITY, BATTERY_FLOOR, MINUTES_PER_TICK
+from config import BATTERY_CAPACITY, BATTERY_FLOOR
 
 class Battery:
     def __init__(self, env, initial_charge, capacity=BATTERY_CAPACITY):

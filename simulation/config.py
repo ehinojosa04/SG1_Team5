@@ -8,6 +8,8 @@ battery sizes, weather patterns, and energy strategies.
 
 from enum import Enum
 
+# SIMULATION PARAMETERS
+
 # ── Simulation Time ──────────────────────────────────────────────────────────
 SIMULATION_DAYS = 30                # Number of days to simulate
 MINUTES_PER_TICK = 15               # Minutes per simulation tick (60 = 1-hour resolution)
@@ -29,6 +31,68 @@ GRID_CONSTRAINT = 20                # Max grid export limit in kW
 
 # ── Solar Panel ──────────────────────────────────────────────────────────────
 SOLAR_PEAK = 5                      # Peak solar panel output in kW (e.g., 5 kW)
+
+# ── Weather ──────────────────────────────────────────────────────────────────
+# Probability weights for each weather type per season.
+# Order must match WEATHER_TYPES: [CLEAR, PARTLY_CLOUDY, MOSTLY_CLOUDY, OVERCAST]
+SEASON_PROBABILITY_FACTOR = {
+    "SPRING": [0.3, 0.4, 0.2, 0.1],
+    "SUMMER": [0.6, 0.3, 0.1, 0.0],
+    "FALL":   [0.3, 0.3, 0.3, 0.1],
+    "WINTER": [0.1, 0.2, 0.3, 0.4],
+}
+
+# Weather type labels used for sampling.
+WEATHER_TYPES = ["CLEAR", "PARTLY_CLOUDY", "MOSTLY_CLOUDY", "OVERCAST"]
+
+# Cloud coverage range (min, max) for each weather type (0.0 = clear sky, 1.0 = fully overcast).
+CLOUD_COVERAGE = {
+    "CLEAR":          (0.0, 0.2),
+    "PARTLY_CLOUDY":  (0.2, 0.6),
+    "MOSTLY_CLOUDY":  (0.6, 0.8),
+    "OVERCAST":       (0.8, 0.9),
+}
+
+# ── Economics ────────────────────────────────────────────────────────────────
+IMPORT_COST = 0.75                  # Cost per kWh imported from the grid (currency units)
+EXPORT_COST = 0.90                  # Revenue per kWh exported to the grid (currency units)
+
+# ── Energy Management Strategy ───────────────────────────────────────────────
+class PRIORITY_OPTIONS(Enum):
+    """Defines how surplus solar energy is allocated each tick."""
+    LOAD = 1                        # Serve household load first, then battery, then export
+    CHARGE = 2                      # Charge battery first, then serve load, then export
+    PRODUCE = 3                     # Export to grid first, then battery, then serve load
+
+# HOUSEHOLD CONFIGURATION
+
+HOUSEHOLD_LOADS = {
+    "STUDIO": {
+        "base_load": 0.2,
+        "peak_load": 2.5
+    },
+    "SMALL": {
+        "base_load": 0.4,
+        "peak_load": 4.5
+    },
+    "LARGE": {
+        "base_load": 0.8,
+        "peak_load": 7.0
+    }
+}
+
+WEALTH_MULTIPLIERS = {
+    "LOW": 0.8,
+    "MIDDLE": 1.0,
+    "HIGH": 1.2,
+    "LUXURY": 1.5
+}
+
+NEIGHBORHOOD_CONFIG = [
+    {"type": "STUDIO", "wealth": "LOW", "charge_priority": PRIORITY_OPTIONS.LOAD, "count": 5},
+    {"type": "SMALL", "wealth": "MIDDLE", "charge_priority": PRIORITY_OPTIONS.LOAD, "count": 5},
+    {"type": "LARGE", "wealth": "LUXURY", "charge_priority": PRIORITY_OPTIONS.LOAD, "count": 5},
+]
 
 # ── Household ────────────────────────────────────────────────────────────────
 BASE_LOAD = 0.5                     # Base household load in kW (constant consumption)
@@ -106,38 +170,3 @@ APPLIANCES = [
         }
     },
 ]
-
-# ── Economics ────────────────────────────────────────────────────────────────
-IMPORT_COST = 0.75                  # Cost per kWh imported from the grid (currency units)
-EXPORT_COST = 0.90                  # Revenue per kWh exported to the grid (currency units)
-
-# ── Energy Management Strategy ───────────────────────────────────────────────
-class PRIORITY_OPTIONS(Enum):
-    """Defines how surplus solar energy is allocated each tick."""
-    LOAD = 1                        # Serve household load first, then battery, then export
-    CHARGE = 2                      # Charge battery first, then serve load, then export
-    PRODUCE = 3                     # Export to grid first, then battery, then serve load
-
-CHARGE_PRIORITY = PRIORITY_OPTIONS.LOAD  # Active strategy used by the simulation
-
-
-# ── Weather ──────────────────────────────────────────────────────────────────
-# Probability weights for each weather type per season.
-# Order must match WEATHER_TYPES: [CLEAR, PARTLY_CLOUDY, MOSTLY_CLOUDY, OVERCAST]
-SEASON_PROBABILITY_FACTOR = {
-    "SPRING": [0.3, 0.4, 0.2, 0.1],
-    "SUMMER": [0.6, 0.3, 0.1, 0.0],
-    "FALL":   [0.3, 0.3, 0.3, 0.1],
-    "WINTER": [0.1, 0.2, 0.3, 0.4],
-}
-
-# Weather type labels used for sampling.
-WEATHER_TYPES = ["CLEAR", "PARTLY_CLOUDY", "MOSTLY_CLOUDY", "OVERCAST"]
-
-# Cloud coverage range (min, max) for each weather type (0.0 = clear sky, 1.0 = fully overcast).
-CLOUD_COVERAGE = {
-    "CLEAR":          (0.0, 0.2),
-    "PARTLY_CLOUDY":  (0.2, 0.6),
-    "MOSTLY_CLOUDY":  (0.6, 0.8),
-    "OVERCAST":       (0.8, 0.9),
-}
