@@ -15,7 +15,7 @@ def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats
     time_factor = MINUTES_PER_TICK / 60
     
     while True:
-        if env.now % 24 == 0:
+        if dt.hour == 0 and dt.minute == 0:
             weather.update(dt)
             inverter.updateCondition()
             grid.update(dt.day)

@@ -22,7 +22,7 @@ def run_scenario(strategy_name, priority_enum):
     weather = Weather(env)
     panel = Panel(env, battery, weather)
     home = Home(env)
-    grid = Grid()
+    grid = Grid(env)
     
     inverter = Inverter(env, panel, battery, home, grid, priority_enum)
     
@@ -35,8 +35,8 @@ def run_scenario(strategy_name, priority_enum):
     env.process(Simulate(env, weather, panel, home, inverter, battery, grid, dummy_log, stats))
     env.run(until=SIMULATION_DAYS * 24)
     
-    total_import_kwh = inverter.metrics['total_grid_import'] / 1000
-    total_export_kwh = inverter.metrics['total_grid_export'] / 1000
+    total_import_kwh = inverter.metrics['total_grid_import']
+    total_export_kwh = inverter.metrics['total_grid_export']
     
     cost = total_import_kwh * IMPORT_COST
     revenue = total_export_kwh * EXPORT_COST
