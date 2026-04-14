@@ -20,7 +20,7 @@ def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats
             inverter.updateCondition()
             grid.update(dt.day)
 
-        panel.update(weather.cloud_coverage)
+        panel.update(dt.hour, weather.cloud_coverage)
         home.update(dt.hour)
 
         generation_kWh = panel.generation * time_factor
@@ -107,7 +107,7 @@ def main() -> None:
     print(f"13. Peak Load Demand:              {peak_load:.2f} W")
     print(f"14. Unmet Load Events:             {stats['unmet_events']}")
     print("-" * 55)
-    print(f">> ECONOMIC BALANCE: {balance_neto:.2f} cents")
+    print(f">> ECONOMIC BALANCE: {'-' if balance_neto < 0 else ''} $ {abs(balance_neto):.2f}")
     print(f"   (Cost: -{gasto:.2f} | Credit: +{ganancia:.2f})")
     print("="*70)
 

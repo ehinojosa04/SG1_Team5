@@ -8,6 +8,11 @@ battery sizes, weather patterns, and energy strategies.
 
 from enum import Enum
 
+# ── Simulation Time ──────────────────────────────────────────────────────────
+SIMULATION_DAYS = 30                # Number of days to simulate
+MINUTES_PER_TICK = 15               # Minutes per simulation tick (60 = 1-hour resolution)
+DATE_OF_SIMULATION = "01/6/2026"   # Simulation start date (dd/mm/yyyy)
+
 # ── Battery ──────────────────────────────────────────────────────────────────
 BATTERY_CAPACITY = 13.5             # Total battery capacity in Wh (e.g., 13.5 kWh)
 BATTERY_FLOOR = 0.05                # Minimum usable state-of-charge (fraction, 0.0–1.0)
@@ -115,10 +120,6 @@ class PRIORITY_OPTIONS(Enum):
 
 CHARGE_PRIORITY = PRIORITY_OPTIONS.LOAD  # Active strategy used by the simulation
 
-# ── Simulation Time ──────────────────────────────────────────────────────────
-SIMULATION_DAYS = 30                # Number of days to simulate
-MINUTES_PER_TICK = 15               # Minutes per simulation tick (60 = 1-hour resolution)
-DATE_OF_SIMULATION = "01/6/2026"   # Simulation start date (dd/mm/yyyy)
 
 # ── Weather ──────────────────────────────────────────────────────────────────
 # Probability weights for each weather type per season.

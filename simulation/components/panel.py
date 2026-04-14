@@ -11,7 +11,7 @@ class Panel:
         self.weather = weather
         self.generation = 0
 
-    def update(self, cloudCoverage):
-        sun_angle = (self.env.now % 24 - 6) * (math.pi / 12)
+    def update(self, hour, cloudCoverage):
+        sun_angle = (hour - 6) * (math.pi / 12)
         self.generation = max(0, SOLAR_PEAK * math.sin(sun_angle) * (1-cloudCoverage))
-        #print(f"Panel update: {self.generation:.2f} kW generated")
+        print(f"Panel update: {SOLAR_PEAK} * {math.sin(sun_angle)} * {(1-cloudCoverage)} = {self.generation:.2f} kW generated")
