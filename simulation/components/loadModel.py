@@ -2,9 +2,9 @@ from config import APPLIANCES
 import random
 
 class Appliance:
-    def __init__(self, name: str, power_kW: float, usage_probabilities: dict):
+    def __init__(self, name: str, power_kW: float, usage_probabilities: dict, multiplier: float):
         self.name = name
-        self.power_kW = power_kW
+        self.power_kW = power_kW * multiplier
         self.usage_probabilities = usage_probabilities 
         self.is_on = False
 
@@ -17,15 +17,15 @@ class Appliance:
 class LoadModel:
     def __init__(self, env, base_load, peak_load, consumption_multiplier) -> None:
         self.env = env
-        self.base_load = base_load
-        self.peak_load = peak_load
         self.consumption_multiplier = consumption_multiplier
+        self.base_load = base_load
+        self.peak_load = peak_load * consumption_multiplier
         self.totalLoad = 0
         self.appliances = []
 
         for a in APPLIANCES:
             self.appliances.append(
-                Appliance(a['name'], a['power_kW'], a['usage'])
+                Appliance(a['name'], a['power_kW'], a['usage'], self.consumption_multiplier)
             )
 
         self.appliances.sort(key=lambda x: x.power_kW)
