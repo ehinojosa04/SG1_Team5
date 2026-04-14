@@ -27,10 +27,10 @@ class Inverter:
             self.fail_count += 1
             self.downtime_remaining = random.randint(MIN_INVERTER_FAIL_DURATION, MAX_INVERTER_FAIL_DURATION)
 
-    def update(self, generation, load):
+    def update(self, generation, load, time_factor):
         if self.is_failed:
-            self.total_downtime += MINUTES_PER_TICK / 60
-            self.downtime_remaining -= MINUTES_PER_TICK / 60
+            self.total_downtime += time_factor
+            self.downtime_remaining -= time_factor
             if self.downtime_remaining <= 0: 
                 self.is_failed = False
                 self.downtime_remaining = 0
@@ -40,102 +40,122 @@ class Inverter:
             self.last_grid_flow = -load
             return
 
-        real_gen = min(generation, INVERTER_CLIPPING)
+        max_inverter_kWh = INVERTER_CLIPPING * time_factor
+        real_gen = min(generation, max_inverter_kWh)
         self.metrics["total_solar_gen"] += real_gen
         
         home_served = 0.0
-        batt_flow = 0.0
+        battery_flow = 0.0
         grid_flow = 0.0
         loss = 0.0
 
         if self.priority == PRIORITY_OPTIONS.LOAD:
+            # POWER THE HOUSE FIRST
             solar_to_home = min(load, real_gen)
             home_served = solar_to_home
-            rem_gen = real_gen - solar_to_home
-            rem_load = load - solar_to_home
+            remaining_gen = real_gen - solar_to_home
+            remaining_load = load - solar_to_home
             
-            if rem_load > 0.001:
-                necesidad_real = rem_load / ROUND_TRIP_EFFICIENCY
-                sacar_de_batt = min(necesidad_real, self.battery.level)
+            # IF MORE IS NEEDED, PULL FROM THE BATTERY
+            if remaining_load > 0.001:
+                real_need = remaining_load / ROUND_TRIP_EFFICIENCY
+                battery_draw = min(real_need, self.battery.level)
                 
-                if sacar_de_batt > 0.001:
-                    self.battery.storage.get(sacar_de_batt)
-                    energia_util = sacar_de_batt * ROUND_TRIP_EFFICIENCY
+                if battery_draw > 0.001:
+                    self.battery.storage.get(battery_draw)
+                    useful_energy = battery_draw * ROUND_TRIP_EFFICIENCY
                     
-                    batt_flow -= energia_util
-                    home_served += energia_util
-                    rem_load -= energia_util 
+                    battery_flow -= useful_energy
+                    home_served += useful_energy
+                    remaining_load -= useful_energy 
 
-  
-            if rem_load > 0.001: 
-                grid_flow -= rem_load
-                home_served += rem_load
+            # IF MORE IS NEEDED, PULL FROM THE GRID
+            if remaining_load > 0.001: 
+                grid_flow -= remaining_load
+                home_served += remaining_load
 
-            if rem_gen > 0.001:
-                espacio_libre = self.battery.remainingCharge 
-        
-                energia_a_guardar = rem_gen * ROUND_TRIP_EFFICIENCY
+            # IF ENERGY LEFT, CHARGE THE BATTERY
+            if remaining_gen > 0.001:
+                energy_to_store = remaining_gen * ROUND_TRIP_EFFICIENCY
                 
               
-                guardar_real = min(espacio_libre, energia_a_guardar)
+                real_store = min(self.battery.remainingCharge , energy_to_store)
                 
-                if guardar_real > 0.001:
-                    self.battery.storage.put(guardar_real)
+                if real_store > 0.001:
+                    self.battery.storage.put(real_store)
                    
-                    costo_panel = guardar_real / ROUND_TRIP_EFFICIENCY
-                    batt_flow += guardar_real
-                    rem_gen -= costo_panel 
+                    energy_cost = real_store / ROUND_TRIP_EFFICIENCY
+                    battery_flow += real_store
+                    remaining_gen -= energy_cost 
 
-           
-                if rem_gen > 0.001:
-                    export = min(self.grid.remainingExport, rem_gen)
-                    if export > 0:
-                        self.grid.exportLimit.put(export)
-                    grid_flow += export
-                    loss = rem_gen - export
+           # IF ENERGY LEFT AND BATTERY IS FULL, EXPORT TO THE GRID
+            if remaining_gen > 0.001:
+                export = min(self.grid.remainingExport, remaining_gen)
+                if export > 0:
+                    self.grid.exportLimit.put(export)
+                grid_flow += export
+                loss = remaining_gen - export
        
         elif self.priority == PRIORITY_OPTIONS.CHARGE:
-           
-            energia_a_guardar = real_gen * ROUND_TRIP_EFFICIENCY
-            guardar_real = min(self.battery.remainingCharge, energia_a_guardar)
+            energy_to_store = real_gen * ROUND_TRIP_EFFICIENCY
+            real_store = min(self.battery.remainingCharge, energy_to_store)
             
-            if guardar_real > 0.001:
-                self.battery.storage.put(guardar_real)
-                costo_panel = guardar_real / ROUND_TRIP_EFFICIENCY
-                batt_flow += guardar_real
-                real_gen -= costo_panel 
+            if real_store > 0.001:
+                self.battery.storage.put(real_store)
+                energy_cost = real_store / ROUND_TRIP_EFFICIENCY
+                battery_flow += real_store
+                real_gen -= energy_cost 
 
            
             solar_to_home = min(load, real_gen)
             home_served = solar_to_home
-            rem_load = load - solar_to_home
+            remaining_gen = real_gen - solar_to_home
+            remaining_load = load - solar_to_home
             
-            if rem_load > 0.001: 
-                grid_flow -= rem_load
-                home_served += rem_load
+            if remaining_load > 0.001: 
+                grid_flow -= remaining_load
+                home_served += remaining_load
+
+            if remaining_gen > 0.001:
+                export = min(self.grid.remainingExport, remaining_gen)
+                if export > 0:
+                    self.grid.exportLimit.put(export)
+                grid_flow += export
+                loss = real_gen - export
 
         elif self.priority == PRIORITY_OPTIONS.PRODUCE:
+            # EXPORT ENERGY GENERATED TO THE GRID
             solar_to_grid = min(self.grid.remainingExport, real_gen)
-            grid_flow += solar_to_grid
-            rem_gen = real_gen - solar_to_grid
+            remaining_gen = real_gen
+
+            if solar_to_grid > 0 and self.grid.remainingExport > 0:
+                self.grid.exportLimit.put(solar_to_grid)
+                grid_flow += solar_to_grid
+                remaining_gen -= solar_to_grid
+
+            # IF ENERGY REMAINING, CHARGE THE BATTERY
+            if remaining_gen > 0.001:
+                energy_to_store = remaining_gen * ROUND_TRIP_EFFICIENCY
+                real_store = min(self.battery.remainingCharge, energy_to_store)
+
+                if real_store > 0.001: 
+                    self.battery.storage.put(real_store)
+                    energy_cost = real_store / ROUND_TRIP_EFFICIENCY
+                    battery_flow += real_store
+                    remaining_gen -= energy_cost
             
-            export = min(GRID_CONSTRAINT, rem_gen)
+            # SATISFY LOAD WITH ENERGY REMAINING, 
+            solar_to_home = min(load, remaining_gen)
+            home_served = solar_to_home
+            remaining_gen -= home_served
+            remaining_load = load - home_served
+
+            # IF ENERGY REMAINING, PULL FROM THE GRID
+            if remaining_load > 0.001:
+                grid_flow -= remaining_load
+                home_served += remaining_load
             
-            if rem_gen > 0.001:
-                energia_a_guardar = rem_gen * ROUND_TRIP_EFFICIENCY
-                guardar_real = min(self.battery.remainingCharge, energia_a_guardar)
-                if guardar_real > 0.001: 
-                    self.battery.storage.put(guardar_real)
-                    batt_flow += guardar_real
-            
-            solar_to_home = min(load, rem_gen)
-            rem_load = load
-            if(solar_to_home > 0.001):
-                rem_load -= rem_gen
-                home_served = solar_to_home
-                rem_load = load - solar_to_home
-            grid_flow -= rem_load
-            home_served += rem_load    
+            loss = remaining_gen
             
             
 
