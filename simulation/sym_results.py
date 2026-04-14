@@ -34,7 +34,7 @@ def run_scenario(priority, start_date, seed=42, days=None):
     weather = Weather(env)
     panel = Panel(env, battery, weather)
     home = Home(env)
-    grid = Grid()
+    grid = Grid(env)
     inverter = Inverter(env, panel, battery, home, grid, priority)
 
     bitacora = []
@@ -93,8 +93,8 @@ def build_results(seed=42):
     }
     for r in base['log']:
         cloud = float(r['Cloud_Cov'])
-        solar = float(r['Solar_Wh'])
-        grid_net = float(r['Grid_Net_Wh'])
+        solar = float(r['Solar_kWh'])
+        grid_net = float(r['Grid_Net_kWh'])
         soc = float(r['SoC_%'])
         row = {'solar_wh': solar, 'grid_import_wh': max(0.0, -grid_net), 'grid_export_wh': max(0.0, grid_net), 'soc': soc}
         if cloud < 0.2:

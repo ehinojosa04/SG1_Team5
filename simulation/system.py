@@ -39,6 +39,8 @@ def Simulate(env, weather, panel, home, inverter, battery, grid, bitacora, stats
         unmet = max(0, load_kWh - (generation_kWh + battery.level)) if inverter.is_failed else 0
         if unmet > 0: stats["unmet_events"] += 1
 
+        print(f"{dt}: SoC: {battery.batteryPercentage:.2f}%, gen: {generation_kWh:.2f}, load: {load_kWh:.2f} ({", ".join([a.name for a in home.appliances if a.is_on])})")
+
        
         bitacora.append({
             "Timestamp": dt.strftime("%Y-%m-%d %H:%M"),
@@ -87,9 +89,9 @@ def main() -> None:
     balance_neto = ganancia - gasto
 
  
-    print("\n" + "="*55)
-    print(f"        TECHNICAL REPORT - SIMULATION SUMMARY ({SIMULATION_DAYS} DAYS)        ")
-    print("="*55)
+    print("\n" + "="*70)
+    print(f"TECHNICAL REPORT - SIMULATION SUMMARY ({DATE_OF_SIMULATION} - {(datetime.strptime(DATE_OF_SIMULATION, "%d/%m/%Y") + timedelta(days=SIMULATION_DAYS)).strftime("%d/%m/%Y")})")
+    print("="*70)
     print(f"1.  Energy Management Strategy:    {CHARGE_PRIORITY.name}")
     print(f"2.  Average Monthly SoC:           {avg_soc:.2f}%")
     print(f"3.  Hours Battery Full:            {stats['full_hours']} hrs")
@@ -107,7 +109,7 @@ def main() -> None:
     print("-" * 55)
     print(f">> ECONOMIC BALANCE: {balance_neto:.2f} cents")
     print(f"   (Cost: -{gasto:.2f} | Credit: +{ganancia:.2f})")
-    print("="*55)
+    print("="*70)
 
     with open('simulation/Monthly_Summary.csv', 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=bitacora[0].keys())

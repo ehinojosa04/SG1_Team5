@@ -8,7 +8,8 @@ class Battery:
         self.storage = Container(env, self.capacity, initial_charge)
     
     def update(self):
-        print(f"Battery update: {self.batteryPercentage:.2f}% | {self.storage.level:.2f} Wh")
+        pass
+        #print(f"Battery update: {self.batteryPercentage:.2f}% | {self.storage.level:.2f} Wh")
 
     @property
     def level(self):
