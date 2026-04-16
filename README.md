@@ -1,8 +1,9 @@
 # Green Grid Digital Twin — SG1 Team 5
 
 A discrete-event simulation of a **residential neighborhood** of solar-powered
-homes with batteries and grid interaction, plus an interactive **Streamlit
-dashboard** that tells the adoption / savings story.
+homes with batteries and grid interaction, plus an interactive **D3-powered
+web dashboard** (Vite + React + TypeScript) that tells the adoption / savings
+story.
 
 The simulator models ~100 households with different archetypes (studio,
 small, large), wealth levels (low → luxury), probabilistic solar/battery
@@ -11,7 +12,7 @@ season-aware weather. A data pipeline automatically transforms the raw
 tick-level output into dashboard-ready datasets, and the dashboard
 visualises production vs. consumption, the duck curve, economics, adoption
 rates, battery utilisation and more — all filterable by type, wealth,
-strategy and time granularity (day / week / month / quarter / year).
+strategy and time granularity.
 
 ## Project structure
 
@@ -27,14 +28,22 @@ SG1_Team5/
 │   ├── output/                    # Raw tick-level CSVs (generated)
 │   └── components/                # Battery, Panel, Inverter, Grid, LoadModel, HouseUnit, Weather
 └── dashboard/
-    ├── app.py                     # Streamlit + Plotly dashboard
-    └── data/                      # Dashboard-ready CSVs (generated, transparently populated)
+    ├── index.html                 # Vite entry point
+    ├── package.json
+    ├── vite.config.ts              # Serves dashboard/data/ at /data/*
+    ├── src/                        # React + D3 source
+    │   ├── App.tsx
+    │   ├── components/             # Sidebar, KPI, D3 chart primitives
+    │   ├── tabs/                   # Overview / Duck / ByType / ByWealth / …
+    │   ├── data/loader.ts          # CSV → typed dataset
+    │   └── types.ts
+    └── data/                       # Dashboard-ready CSVs (generated, gitignored)
 ```
 
 ## Prerequisites
 
-- Python **3.10+** (tested with 3.13)
-- `pip`
+- Python **3.10+** (tested with 3.13) — for the simulator
+- Node.js **18+** and `npm` — for the dashboard
 
 ## Setup
 
@@ -42,13 +51,19 @@ SG1_Team5/
 git clone https://github.com/ehinojosa04/SG1_Team5
 cd SG1_Team5
 
+# Simulator
 python3 -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
-
 pip install -r requirements.txt
+
+# Dashboard
+cd dashboard
+npm install
+cd ..
 ```
 
-`requirements.txt` installs `simpy`, `pandas`, `streamlit`, and `plotly`.
+`requirements.txt` installs `simpy` and `pandas`. The dashboard uses `vite`,
+`react`, `d3`, and `tailwindcss` — see `dashboard/package.json`.
 
 ## Running the simulator
 
@@ -109,26 +124,34 @@ python data_pipeline.py
 
 ## Running the dashboard
 
-From the repository root:
+From the repository root (after the simulator has populated `dashboard/data/`):
 
 ```bash
-streamlit run dashboard/app.py
+cd dashboard
+npm run dev
 ```
 
-Streamlit opens the dashboard at <http://localhost:8501>. Features:
+Vite opens the dashboard at <http://localhost:5173>. The dev server serves
+`dashboard/data/*.csv` under the `/data/*` URL via a small middleware in
+`vite.config.ts`, so you can just re-run the simulator and reload the page
+to see fresh numbers.
 
-- **Sidebar**
-  - Scenario selector + one-click **Run simulation** button (launches the
-    simulator as a subprocess with the chosen scenario, then reloads).
-  - Multi-select filters: household type, wealth level, charge strategy.
-  - Solar / battery filters (`All` / `Only solar` / `Only non-solar`, etc.).
-  - Date range picker.
-  - Time granularity selector (Hour / Day / Week / Month / Quarter / Year).
+To produce a static build:
+
+```bash
+npm run build      # outputs to dashboard/dist/
+npm run preview    # serve the built app locally
+```
+
+**Features**:
+
+- **Sidebar** — filter by household type, wealth level, charge strategy;
+  toggle solar-only / battery-only; pick date range and time granularity.
 - **Tabs**
   1. **Overview** — KPIs + production vs. consumption + surplus/deficit.
   2. **Duck Curve** — classic net-load vs. hour-of-day curve, grouped by
      neighborhood / type / wealth.
-  3. **By Type** — bar, box and heatmap breakdowns per household archetype.
+  3. **By Type** — grouped bars, load heatmap, and box plots per archetype.
   4. **By Wealth** — production vs. consumption and net-$ heatmap by
      wealth × type.
   5. **Economics** — cumulative savings over time, per-household savings
@@ -136,22 +159,10 @@ Streamlit opens the dashboard at <http://localhost:8501>. Features:
   6. **Adoption** — solar and battery adoption heatmaps + scatter of
      adoption vs. per-home savings.
   7. **Battery & Grid** — SoC by hour of day, grid imports/exports by
-     hour, peak demand vs. peak production annotations.
+     hour, peak demand vs. peak production.
 
-### Public hosting (optional)
-
-Streamlit apps deploy for free to
-[Streamlit Community Cloud](https://streamlit.io/cloud):
-
-1. Push this repository to GitHub.
-2. Connect your GitHub account on share.streamlit.io.
-3. Point it at `dashboard/app.py`.
-4. Add `requirements.txt` to the app settings.
-
-Because the pipeline writes relative to the project root, the dashboard
-works out of the box on Streamlit Cloud as long as the repo is checked
-out with a pre-generated `dashboard/data/` (commit a baseline run or
-generate one on startup).
+All charts are bespoke [D3.js](https://d3js.org/) visualisations with shared
+scales, tooltips and dark-mode styling.
 
 ## Key configuration
 
@@ -188,14 +199,12 @@ Written by `simulation/data_pipeline.py` to `dashboard/data/`:
 
 ## Troubleshooting
 
-- **Dashboard shows "No data available yet"**: run the simulator first
-  (`cd simulation && python simulation.py`) or click **Run simulation** in
-  the sidebar.
-- **Scenario change doesn't take effect**: the dashboard's Run-simulation
-  button passes `GG_SCENARIO` to a subprocess; make sure no cached Python
-  has imported `config` in an ambient shell.
+- **Dashboard shows "Could not load data"**: run the simulator first
+  (`cd simulation && python simulation.py`) so `dashboard/data/` is populated.
+- **Changed the scenario but the dashboard hasn't updated**: re-run the
+  simulator with the desired `GG_SCENARIO` env var, then reload the page.
 - **Charts are empty after filtering**: filters intersect — loosen the
-  solar/battery/strategy filters first.
+  solar / battery / strategy filters first.
 
 ## Deactivating the virtual environment
 

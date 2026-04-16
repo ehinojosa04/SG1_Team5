@@ -1,3 +1,6 @@
 data/
-__pycache__/
-.streamlit/
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store

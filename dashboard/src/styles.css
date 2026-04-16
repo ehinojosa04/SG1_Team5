@@ -1,0 +1,202 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    "Inter", "InterVariable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* D3-ish palette (dark, clean, a little warm) */
+  --color-bg: #0b0f14;
+  --color-panel: #111821;
+  --color-panel-2: #151d28;
+  --color-border: #1f2a37;
+  --color-ink: #e5e7eb;
+  --color-ink-dim: #9aa4b2;
+  --color-accent: #f59e0b;
+  --color-green: #10b981;
+  --color-red: #ef4444;
+  --color-blue: #60a5fa;
+  --color-violet: #8b5cf6;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(245, 158, 11, 0.06), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(96, 165, 250, 0.06), transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Scrollbar */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1f2a37;
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #2a3a4c;
+}
+
+/* D3 chart defaults */
+.chart text {
+  fill: var(--color-ink-dim);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+.chart .axis path,
+.chart .axis line {
+  stroke: #22303f;
+  shape-rendering: crispEdges;
+}
+.chart .grid line {
+  stroke: #1a2330;
+  stroke-dasharray: 2 3;
+}
+.chart .grid path {
+  stroke: transparent;
+}
+.chart .axis-title {
+  fill: var(--color-ink-dim);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Tooltip */
+.d3-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(11, 15, 20, 0.95);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  transform: translate(-50%, calc(-100% - 10px));
+  opacity: 0;
+  transition: opacity 120ms ease;
+  z-index: 50;
+  white-space: nowrap;
+}
+.d3-tooltip.visible {
+  opacity: 1;
+}
+.d3-tooltip b {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.d3-tooltip .muted {
+  color: var(--color-ink-dim);
+}
+
+/* Card */
+.card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+    var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.card-title {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-dim);
+  margin-bottom: 10px;
+}
+
+/* Inputs */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-dim);
+}
+.input,
+.select {
+  width: 100%;
+  background: var(--color-panel-2);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+.input:focus,
+.select:focus {
+  border-color: #2f3d4f;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-panel-2);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.chip.on {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.tab {
+  position: relative;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--color-ink-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.tab:hover {
+  color: var(--color-ink);
+}
+.tab.active {
+  color: var(--color-ink);
+  background: var(--color-panel);
+  border-color: var(--color-border);
+}
+.tab.active::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 2px;
+}
