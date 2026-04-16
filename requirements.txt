@@ -1,2 +1,4 @@
 simpy>=4.0
-pandas
+pandas>=2.0
+streamlit>=1.30
+plotly>=5.18

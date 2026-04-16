@@ -91,8 +91,6 @@ class Inverter:
            # IF ENERGY LEFT AND BATTERY IS FULL, EXPORT TO THE GRID
             if remaining_gen > 0.001:
                 export = min(self.grid.remainingExport, remaining_gen)
-                if export > 0:
-                    self.grid.exportLimit.put(export)
                 grid_flow += export
                 loss = remaining_gen - export
        
@@ -118,18 +116,15 @@ class Inverter:
 
             if remaining_gen > 0.001:
                 export = min(self.grid.remainingExport, remaining_gen)
-                if export > 0:
-                    self.grid.exportLimit.put(export)
                 grid_flow += export
-                loss = real_gen - export
+                loss = remaining_gen - export
 
         elif self.priority == PRIORITY_OPTIONS.PRODUCE:
             # EXPORT ENERGY GENERATED TO THE GRID
             solar_to_grid = min(self.grid.remainingExport, real_gen)
             remaining_gen = real_gen
 
-            if solar_to_grid > 0 and self.grid.remainingExport > 0:
-                self.grid.exportLimit.put(solar_to_grid)
+            if solar_to_grid > 0.001:
                 grid_flow += solar_to_grid
                 remaining_gen -= solar_to_grid
 
