@@ -1,0 +1,188 @@
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx} % Times New Roman equivalent
+\usepackage[english]{babel}
+\usepackage{amsmath,amsfonts,amsthm}
+\usepackage{setspace} % For line spacing
+\usepackage{geometry}
+\geometry{a4paper, margin=2.5cm}
+
+\usepackage{sectsty}
+\allsectionsfont{\centering \normalfont\scshape}
+
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\fancyhead{}
+\fancyfoot[L]{}
+\fancyfoot[C]{}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{13.6pt}
+
+\onehalfspacing % 1.5 line spacing
+
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+
+\setlength\parindent{0pt}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+
+\title{
+\normalfont \normalsize
+\textsc{Universidad Panamericana, Graphical Simulation} \\ [25pt]
+\horrule{0.5pt} \\[0.4cm]
+\huge Green Grid Simulation -- Second Partial \\
+\horrule{2pt} \\[0.5cm]
+}
+
+\author{Emiliano Hinojosa Guzm\'an \\ Diego Am\'in Hernandez Pallares \\ Jos\'e Salcedo Uribe}
+
+\date{\normalsize April 16, 2026}
+
+\begin{document}
+
+\maketitle
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Design Choices, Challenges, and Future Improvements}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection*{Design Choices}
+
+Building on the single-household digital twin from the first partial, the second iteration of the Green Grid simulation was redesigned to model an entire neighborhood. The fundamental architectural decision was to preserve the modular component structure established previously—\texttt{panel}, \texttt{battery}, \texttt{home}, \texttt{weather}, \texttt{inverter}, and \texttt{grid}—and wrap each instance of these components inside a new \texttt{HouseUnit} class. This encapsulation allows each household to maintain its own independent state (battery charge, inverter condition, energy flows) while sharing a single \texttt{Weather} object, which is physically justified because houses in the same neighborhood experience the same atmospheric conditions.
+
+The neighborhood composition is defined entirely through the \texttt{NEIGHBORHOOD\_CONFIG} list in \texttt{config.py}. Each entry specifies a household type (\texttt{STUDIO}, \texttt{SMALL}, or \texttt{LARGE}), a wealth level (\texttt{LOW}, \texttt{MIDDLE}, \texttt{HIGH}, or \texttt{LUXURY}), an energy management strategy, and a count. This single-file configuration approach means experiments can be reproduced and the neighborhood topology can be changed without touching any simulation logic.
+
+Household energy consumption was modelled using a probabilistic appliance-based \texttt{LoadModel}. Each appliance (lighting, TV, computer, microwave, dishwasher, electric oven) carries hourly usage probabilities drawn from real-world usage patterns. At every simulation tick, the model checks whether each appliance is on, accumulates the load, and caps it at the household's peak load multiplied by the wealth factor. The wealth multipliers (0.8$\times$ for low income up to 1.5$\times$ for luxury) are applied at \texttt{LoadModel} construction time, so all downstream logic is unaware of wealth—it simply receives a load value. This keeps concerns cleanly separated.
+
+The simulation loop in \texttt{simulation.py} iterates over all \texttt{HouseUnit} objects at every 15-minute tick, calls \texttt{stepUpdate} on each, and aggregates totals into a system-level log. Two output CSV files are produced: \texttt{HouseholdsSummary.csv} (one row per house per tick) and \texttt{SystemSummary.csv} (aggregated neighborhood totals per tick). This dual-output design allows both micro-level analysis (per household) and macro-level storytelling (neighborhood as a whole).
+
+\subsection*{Main Challenges Faced}
+
+\begin{itemize}
+    \item \textbf{Scaling the simulation without breaking existing logic.} The original simulation was written as a single-agent process. Promoting it to multi-agent required refactoring the main simulation loop and introducing \texttt{HouseUnit} as a coordinator object, while ensuring the shared \texttt{Weather} instance was updated exactly once per day regardless of the number of houses.
+
+    \item \textbf{Wealth and household type interactions.} The wealth multiplier and base/peak load parameters interact multiplicatively. Ensuring that a luxury large family did not produce pathological load values—such as exceeding the inverter clipping limit every tick—required careful calibration of the \texttt{HOUSEHOLD\_LOADS} dictionary and testing across all combinations.
+
+    \item \textbf{Data volume and output transparency.} With the neighborhood simulation running at high resolution over 30 days, the data output grows significantly. Designing data pipelines that can filter, group, and aggregate this volume without requiring manual file placement was a key priority. The \texttt{sym\_results.py} module addresses this by running the simulation programmatically and returning structured results directly to the caller.
+
+    \item \textbf{Dashboard integration.} Connecting live simulation output to interactive dashboard visualizations required agreeing on a canonical data schema early in development. The dashboard layer reads the generated CSV files and must remain tolerant of missing or zero-value records, such as periods when no solar generation occurs.
+\end{itemize}
+
+\subsection*{Potential Improvements for Future Iterations}
+
+\begin{itemize}
+    \item Introduce stochastic occupancy patterns so that households have realistic day-off and vacation profiles, rather than the same probabilistic appliance schedule every day.
+    \item Model shared grid infrastructure constraints at the neighborhood level (transformer capacity, feeder current limits) rather than enforcing per-house export limits only.
+    \item Add a battery degradation model that reduces effective capacity over simulated months or years.
+    \item Integrate a real-time dashboard server (e.g., Streamlit or Dash) that reads the simulation output and refreshes visualizations automatically on each run, eliminating manual file transfers.
+    \item Run Monte Carlo sweeps over weather seeds and household configurations to produce confidence intervals on key KPIs such as annual savings and grid export revenue.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Data Structures Used in Data Preparation}
+% ─────────────────────────────────────────────────────────────────────────────
+
+The data preparation layer sits between the raw simulation output and the dashboard visualizations. The following data structures and design decisions were made to support flexible, multi-granularity display.
+
+\textbf{Flat row-per-event logs (list of dicts $\rightarrow$ Pandas DataFrame).}
+Both the household log (\texttt{house\_logs}) and the system log (\texttt{system\_logs}) are accumulated as Python lists of dictionaries during the simulation run. Each dictionary represents one tick of one house (or the aggregated neighborhood). At the end of the run, \texttt{pd.DataFrame(house\_logs)} converts the list into a columnar structure. This choice was made because Python dicts are fast to append in a hot loop and Pandas DataFrames provide rich downstream aggregation (groupby, resample, pivot\_table) without additional infrastructure.
+
+The columns of \texttt{HouseholdsSummary.csv} are: \texttt{timestamp}, \texttt{house\_id}, \texttt{type}, \texttt{wealth}, \texttt{generation\_kWh}, \texttt{load\_kWh}, \texttt{soc}, \texttt{grid\_imports\_kWh}, \texttt{grid\_exports\_kWh}, \texttt{inverter\_ok}. The presence of \texttt{type} and \texttt{wealth} as categorical columns on every row enables groupby operations such as ``total exports by household type and wealth level'' with a single line of Pandas code, which directly maps to several of the required dashboard charts.
+
+\textbf{Aggregated time-indexed series for the Duck Curve.}
+To produce the Duck Curve chart, the per-house generation and load columns are summed across all houses and then averaged (or summed) by hour-of-day using \texttt{groupby(df.timestamp.dt.hour).mean()}. The result is a 24-point series for total load and net load (load minus generation). This structure is small enough to be embedded directly in dashboard JSON and recomputed on filter changes without performance issues.
+
+\textbf{Nested JSON for strategy and seasonal comparison.}
+The \texttt{sym\_results.py} module returns a nested Python dictionary containing keys for \texttt{default\_run}, \texttt{strategy\_comparison}, \texttt{cloud\_impact}, and \texttt{seasonal\_comparison}. Each leaf is a scalar metric (float or int). This structure was chosen because it maps directly to the JSON format expected by modern dashboard frameworks, can be serialised in one call (\texttt{json.dumps}), and allows the dashboard to destructure only the sections it needs without parsing a large CSV.
+
+\textbf{Why not a relational database?}
+A relational database (SQLite, PostgreSQL) was considered but rejected for this iteration because the simulation is a single-run, offline process. The overhead of setting up a schema, writing insert statements, and managing connections would not provide value over flat files given the current data volumes and single-user access pattern. If the project were to support multiple concurrent simulation runs or historical archiving, a database would become the appropriate choice.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Dashboard Design and Graph Justification}
+% ─────────────────────────────────────────────────────────────────────────────
+
+The dashboard was designed as a tool for researchers and decision-makers to evaluate neighborhood-scale renewable energy systems. It focuses on the economic and operational feasibility of a decentralized "Green Grid."
+
+\subsection*{The Pitch}
+
+The narrative of the dashboard is centered on the transition from passive energy consumption to active neighborhood management. The pitch emphasizes how solar and battery integration across a diverse neighborhood can mitigate the grid stress identified by the Duck Curve, while providing measurable financial returns. Every chart is chosen to guide the user from the macro-level grid challenges to the micro-level household benefits, justifying the investment in shared infrastructure.
+
+\subsection*{Implemented Visualisations}
+
+\textbf{Duck Curve (Neighborhood Net Load).} This visualization is fundamental to identifying grid stress points. It displays total consumption versus solar generation to highlight the midday "belly" and the steep evening "neck". This justifies the need for flexible energy management and storage solutions.
+
+\textbf{Production vs.\ Consumption by Household Type and Wealth Level.} These grouped charts allow for a comparative analysis of energy patterns. They demonstrate how variations in size and income impact net energy balance, revealing that while luxury homes consume more, they often contribute more to total surplus when equipped with solar.
+
+\textbf{Grid Imports vs.\ Exports (Net Flow).} This chart tracks the neighborhood's status as either a consumer or a supplier to the wider grid over time. It serves as the primary metric for evaluating the success of the simulation in achieving a surplus state.
+
+\textbf{Battery State of Charge (SoC) and Utilization.} This visualization justifies the inclusion of storage. It illustrates how batteries absorb peak production to discharge during peak demand, effectively damping the Duck Curve and reducing reliance on external grid imports.
+
+\textbf{Cost Savings and Economic Balance.} A summary of potential savings derived from self-consumption and grid export credits. This addresses the entrepreneur's perspective by showing the direct financial impact of the simulation on different household segments.
+
+\subsection*{Charts Considered But Not Included}
+
+A "Real-Time Weather Impact" line chart was considered to show the direct correlation between cloud cover and generation dips. However, it was excluded to avoid cluttering the primary dashboard, as this information is already implicitly reflected in the aggregate production curves. Similarly, a per-appliance usage heatmap was deemed too granular for the target audience of neighborhood-level decision-makers.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Development Log}
+% ─────────────────────────────────────────────────────────────────────────────
+
+This log records the day-to-day progress of the project, detailing the specific tasks performed by each team member based on the repository history.
+
+\subsection*{April 13, 2026 --- Unit Correction and Initial Fixes}
+\textbf{Participant: Emiliano Hinojosa Guzm\'an}
+\begin{itemize}
+    \item Implemented a critical fix regarding units and the double time factor in the simulation loop.
+    \item Resolved various minor bugs to stabilize the initial multi-house iteration.
+\end{itemize}
+
+\subsection*{April 14, 2026 --- Logic Refactor and Data Layer}
+\textbf{Participant: Emiliano Hinojosa Guzm\'an}
+\begin{itemize}
+    \item Completed a full Object-Oriented refactor to handle coordination between multiple house units.
+    \item Developed and integrated the appliance-based load model for more realistic consumption patterns.
+    \item Refactored the logging and data system to utilize the Pandas library for optimized performance.
+    \item Applied general minor improvements across the simulation core.
+\end{itemize}
+
+\subsection*{April 16, 2026 --- Dashboard Development and Final Reporting}
+\textbf{Participant: Jos\'e Salcedo Uribe}
+\begin{itemize}
+    \item Developed the core dashboard infrastructure and integrated D3 visualization elements.
+    \item Configured repository management, including the .gitignore file and data tracking settings for generated assets.
+\end{itemize}
+
+\textbf{Participant: Diego Am\'in Hernandez Pallares}
+\begin{itemize}
+    \item Authored the final 4-6 page technical report summarizing design choices, challenges, and results.
+    \item Developed the comprehensive technical documentation and README instructions for the project repository.
+    \item Validated the simulation narrative to ensure it effectively supports the project pitch for the second partial.
+\end{itemize}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Personal Reflections}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsection*{Emiliano Hinojosa Guzm\'an}
+
+When we began the second partial, my first instinct was to build the neighbourhood simulator by duplicating the existing single-house loop. After sketching that approach on paper, it became clear that duplication would make the configuration rigid and the code hard to read. The decision to create \texttt{HouseUnit} as a true encapsulation boundary was the right one, even though it required a significant refactor of the simulation entry point. In retrospect, I wish we had defined that boundary in the first partial, because the original \texttt{system.py} mixed orchestration logic with component logic in ways that complicated the upgrade.
+
+\subsection*{Diego Am\'in Hernandez Pallares}
+
+My contribution to the second partial centered on translating our technical implementation into a compelling and cohesive narrative. While the simulation's underlying mechanics—such as the appliance-based load model and the wealth multipliers—introduced significant complexity to the project, my primary challenge was ensuring these complexities were clearly communicated in our documentation. For instance, explaining the intricate interaction between household type and wealth (e.g., clarifying why a luxury studio flat still consumes less than a middle-income large family despite the 1.5$\times$ multiplier) was crucial for the report's justification.
+
+I spent considerable time structuring the comprehensive technical documentation and the repository's README instructions. Throughout this process, I realized that a robust simulation is only as effective as its documentation; if users or stakeholders cannot easily run the configuration files or understand the data pipelines, the technical effort is diminished. 
+
+\subsection*{Jos\'e Salcedo Uribe}
+
+Data preparation was my primary focus this partial. The decision to write \texttt{sym\_results.py} as a standalone script that can be called programmatically was motivated by the requirement that data flow should be transparent—no manual file copying. By returning a structured dictionary, the script makes its outputs inspectable in a Python REPL or testable in a unit test without needing to open a file.
+
+My main lesson from this phase is that data preparation is not just about transforming rows—it is about designing an API between the simulation and the consumer of its results. If I were starting over, I would define that API as a typed dataclass or a Pydantic model from day one, so that both the producer (simulation) and the consumer (dashboard) have a shared contract to validate against.
+
+\end{document}
