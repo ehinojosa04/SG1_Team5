@@ -1,4 +1,4 @@
-!data/loader.ts # don't ignore the loader.ts file
+data/
 node_modules/
 dist/
 .vite/
