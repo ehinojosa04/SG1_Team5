@@ -36,6 +36,7 @@ ML_DATA_DIR = os.path.join(REPO_ROOT, "137337_San_Francisco_2006")
 ML_ARTIFACTS_DIR = os.path.join(SIM_DIR, "ml_artifacts")
 ML_MODEL_PATH = os.path.join(ML_ARTIFACTS_DIR, "solar_linear_model.json")
 ML_SITE_CAPACITY_MW = 33.0
+ML_WEATHER_TIME_SHIFT_HOURS = -8
 ML_INPUT_FILES = {
     "actual": "137337_Actual_DPV_33MW_5m.csv",
     "day_ahead": "137337_DA_DPV_33MW_60m.csv",
