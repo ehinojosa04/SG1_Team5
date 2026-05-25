@@ -6,7 +6,11 @@ Adjust these values to model different solar system setups,
 battery sizes, weather patterns, and energy strategies.
 """
 
+import os
 from enum import Enum
+
+SIM_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.normpath(os.path.join(SIM_DIR, ".."))
 
 # ── Battery ──────────────────────────────────────────────────────────────────
 BATTERY_CAPACITY = 13.5             # Total battery capacity in Wh (e.g., 13.5 kWh)
@@ -24,6 +28,64 @@ GRID_CONSTRAINT = 20                # Max grid export limit in kW
 
 # ── Solar Panel ──────────────────────────────────────────────────────────────
 SOLAR_PEAK = 5                      # Peak solar panel output in kW (e.g., 5 kW)
+
+# ── ML Solar Predictor ───────────────────────────────────────────────────────
+SOLAR_MODEL_MODE = "synthetic"
+ML_SIM_START = "2006-12-01"
+ML_DATA_DIR = os.path.join(REPO_ROOT, "137337_San_Francisco_2006")
+ML_ARTIFACTS_DIR = os.path.join(SIM_DIR, "ml_artifacts")
+ML_MODEL_PATH = os.path.join(ML_ARTIFACTS_DIR, "solar_linear_model.json")
+ML_SITE_CAPACITY_MW = 33.0
+ML_INPUT_FILES = {
+    "actual": "137337_Actual_DPV_33MW_5m.csv",
+    "day_ahead": "137337_DA_DPV_33MW_60m.csv",
+    "four_hour_ahead": "137337_HA4_DPV_33MW_60m.csv",
+    "weather": "137337_Weather_30m.csv",
+}
+ML_FEATURE_GROUPS = {
+    "da_only": ["da_mw"],
+    "weather_only": [
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type",
+    ],
+    "weather_forecast": [
+        "da_mw",
+        "ha4_mw",
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type",
+    ],
+    "weather_forecast_time": [
+        "da_mw",
+        "ha4_mw",
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+    ],
+}
 
 # ── Household ────────────────────────────────────────────────────────────────
 BASE_LOAD = 0.5                     # Base household load in kW (constant consumption)

@@ -25,8 +25,11 @@ SG1_Team5/
 │   ├── data_pipeline.py           # Auto-runs at end of sim; publishes to dashboard/data/
 │   ├── config.py                  # Tunable parameters + named scenarios
 │   ├── config.template.py         # Reference template
+│   ├── ml/                        # Solar ML data/model/training package
+│   ├── ml_artifacts/              # Trained model + diagnostics (generated)
 │   ├── output/                    # Raw tick-level CSVs (generated)
 │   └── components/                # Battery, Panel, Inverter, Grid, LoadModel, HouseUnit, Weather
+├── 137337_San_Francisco_2006/      # Canonical San Francisco solar/weather data
 └── dashboard/
     ├── index.html                 # Vite entry point
     ├── package.json
