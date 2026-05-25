@@ -7,18 +7,17 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "data");
+const ML_DATA_DIR = path.join(__dirname, "..", "simulation", "ml_artifacts");
 
-// Serve the existing `dashboard/data/` folder (populated by the simulator's
-// data pipeline) as static files under `/data/*`. This keeps the generated
-// CSVs out of `public/` while still letting the browser fetch them.
-function dataMiddleware(): Plugin {
+function serveGeneratedData(prefix: string, rootDir: string): Plugin {
   return {
-    name: "serve-data",
+    name: `serve-generated-data-${prefix.replace(/\W+/g, "")}`,
     configureServer(server) {
-      server.middlewares.use("/data", (req, res, next) => {
+      server.middlewares.use(prefix, (req, res) => {
         const url = ((req.url as string | undefined) ?? "").split("?")[0];
-        const filePath = path.join(DATA_DIR, url);
-        if (!filePath.startsWith(DATA_DIR)) {
+        const filePath = path.join(rootDir, url);
+        const relativePath = path.relative(rootDir, filePath);
+        if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
           res.statusCode = 403;
           res.end("forbidden");
           return;
@@ -31,7 +30,8 @@ function dataMiddleware(): Plugin {
           );
           fs.createReadStream(filePath).pipe(res);
         } else {
-          next();
+          res.statusCode = 404;
+          res.end("not found");
         }
       });
     },
@@ -39,7 +39,12 @@ function dataMiddleware(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), dataMiddleware()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    serveGeneratedData("/data", DATA_DIR),
+    serveGeneratedData("/ml-data", ML_DATA_DIR),
+  ],
   server: {
     port: 5173,
     host: true,

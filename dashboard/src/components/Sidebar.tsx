@@ -12,7 +12,7 @@ const GRANULARITIES: Granularity[] = ["hour", "day", "week", "month"];
 export default function Sidebar({ dataset, filters, onChange }: Props) {
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
   const hh = dataset.households;
-  const strategies = Array.from(new Set(hh.map((h) => h.strategy))).sort();
+  const strategies = Array.from(new Set(hh.map((h) => h.strategy).filter(Boolean))).sort();
 
   const toggle = <T extends string>(list: T[], v: T): T[] =>
     list.includes(v) ? list.filter((x) => x !== v) : [...list, v];

@@ -114,6 +114,81 @@ export interface AdoptionRow {
   battery_adoption_pct: number;
 }
 
+export interface MLPreparedRow {
+  timestamp: Date;
+  actual_mw: number;
+  capacity_factor: number;
+  da_mw: number;
+  ha4_mw: number;
+  temperature_c: number;
+  relative_humidity_pct: number;
+  dhi: number;
+  dni: number;
+  ghi: number;
+  solar_zenith_angle: number;
+  wind_speed: number;
+  pressure: number;
+  cloud_type: number;
+  cloud_fill_flag: number;
+  fill_flag: number;
+  split: "train" | "validation" | "test";
+}
+
+export interface MLVariantSummary {
+  rows: number;
+  start: string;
+  end: string;
+  split_counts: Record<string, number>;
+  congruence: {
+    actual_ghi_correlation: number;
+    low_ghi_high_production_rows: number;
+    large_15min_actual_jump_rows: number;
+    production_during_zero_irradiance_rows: number;
+    zero_production_during_high_irradiance_rows: number;
+  };
+  forecast_metrics: Record<
+    "da_mw" | "ha4_mw",
+    {
+      mae_mw: number;
+      max_abs_error_mw: number;
+      correlation_with_actual: number;
+    }
+  >;
+  weather_flag_counts: Record<string, Record<string, number>>;
+  stats: Record<string, { min: number; max: number; mean: number; std: number }>;
+}
+
+export interface MLVariantComparisonMetric {
+  differing_rows: number;
+  mean_abs_difference: number;
+  max_abs_difference: number;
+  rows_abs_difference_gt_1: number;
+  rows_abs_difference_gt_5: number;
+}
+
+export interface MLVariantComparison {
+  aligned_rows: number;
+  actual_mw: MLVariantComparisonMetric;
+  capacity_factor: MLVariantComparisonMetric;
+  da_mw: MLVariantComparisonMetric;
+  ha4_mw: MLVariantComparisonMetric;
+}
+
+export interface MLDataSummary {
+  default_variant: string;
+  weather_time_shift_hours: number;
+  expanded_feature_groups: Record<string, string[]>;
+  configured_features: string[];
+  variants: Record<"base" | "alt_1", MLVariantSummary>;
+  variant_comparison: MLVariantComparison;
+}
+
+export interface MLDataset {
+  summary: MLDataSummary;
+  base: MLPreparedRow[];
+  alt1: MLPreparedRow[];
+}
+
 export interface Dataset {
   manifest: Manifest | null;
   households: Household[];
@@ -123,6 +198,7 @@ export interface Dataset {
   hourlySeg: HourlySegmentRow[];
   segment: SegmentRow[];
   adoption: AdoptionRow[];
+  mlData: MLDataset | null;
 }
 
 export interface Filters {

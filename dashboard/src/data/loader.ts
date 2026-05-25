@@ -6,6 +6,9 @@ import type {
   Household,
   HourlyNeighborhoodRow,
   HourlySegmentRow,
+  MLDataSummary,
+  MLDataset,
+  MLPreparedRow,
   Manifest,
   SegmentRow,
   SystemTick,
@@ -19,6 +22,42 @@ const toBool = (v: unknown): boolean => {
 };
 
 const toDate = (v: unknown): Date => new Date(String(v).replace(" ", "T"));
+const toStrategy = (d: Record<string, string>): string =>
+  d.strategy || d.charge_priority || "UNKNOWN";
+
+const parseMlRow = (d: Record<string, string>): MLPreparedRow => ({
+  timestamp: toDate(d.timestamp),
+  actual_mw: +d.actual_mw,
+  capacity_factor: +d.capacity_factor,
+  da_mw: +d.da_mw,
+  ha4_mw: +d.ha4_mw,
+  temperature_c: +d.temperature_c,
+  relative_humidity_pct: +d.relative_humidity_pct,
+  dhi: +d.dhi,
+  dni: +d.dni,
+  ghi: +d.ghi,
+  solar_zenith_angle: +d.solar_zenith_angle,
+  wind_speed: +d.wind_speed,
+  pressure: +d.pressure,
+  cloud_type: +d.cloud_type,
+  cloud_fill_flag: +d.cloud_fill_flag,
+  fill_flag: +d.fill_flag,
+  split: d.split as MLPreparedRow["split"],
+});
+
+async function loadMlDataset(): Promise<MLDataset | null> {
+  try {
+    const [summary, base, alt1] = await Promise.all([
+      json<MLDataSummary>("/ml-data/data_summary.json"),
+      csv<MLPreparedRow>("/ml-data/prepared_training_data_base.csv", parseMlRow),
+      csv<MLPreparedRow>("/ml-data/prepared_training_data_alt_1.csv", parseMlRow),
+    ]);
+    if (!summary) return null;
+    return { summary, base, alt1 };
+  } catch {
+    return null;
+  }
+}
 
 export async function loadDataset(): Promise<Dataset> {
   const [
@@ -30,13 +69,14 @@ export async function loadDataset(): Promise<Dataset> {
     hourlySeg,
     segment,
     adoption,
+    mlData,
   ] = await Promise.all([
     json<Manifest>("/data/manifest.json").catch(() => null),
     csv<Household>("/data/households.csv", (d: Record<string, string>) => ({
       house_id: +d.house_id,
       type: d.type as Household["type"],
       wealth: d.wealth as Household["wealth"],
-      strategy: d.strategy,
+      strategy: toStrategy(d),
       has_solar: toBool(d.has_solar),
       has_battery: toBool(d.has_battery),
       pv_kwp: +d.pv_kwp,
@@ -62,7 +102,7 @@ export async function loadDataset(): Promise<Dataset> {
         house_id: +d.house_id,
         type: d.type as DailyHouseholdRow["type"],
         wealth: d.wealth as DailyHouseholdRow["wealth"],
-        strategy: d.strategy,
+        strategy: toStrategy(d),
         has_solar: toBool(d.has_solar),
         has_battery: toBool(d.has_battery),
         generation_kWh: +d.generation_kWh,
@@ -83,6 +123,7 @@ export async function loadDataset(): Promise<Dataset> {
     >,
     csv<SegmentRow>("/data/segment_summary.csv", autoType) as Promise<SegmentRow[]>,
     csv<AdoptionRow>("/data/adoption.csv", autoType) as Promise<AdoptionRow[]>,
+    loadMlDataset(),
   ]);
 
   return {
@@ -94,5 +135,6 @@ export async function loadDataset(): Promise<Dataset> {
     hourlySeg,
     segment,
     adoption,
+    mlData,
   };
 }

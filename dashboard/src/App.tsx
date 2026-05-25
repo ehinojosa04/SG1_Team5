@@ -10,6 +10,7 @@ import ByWealth from "./tabs/ByWealth";
 import Economics from "./tabs/Economics";
 import Adoption from "./tabs/Adoption";
 import BatteryGrid from "./tabs/BatteryGrid";
+import MLData from "./tabs/MLData";
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -19,6 +20,7 @@ const TABS = [
   { id: "economics", label: "Economics" },
   { id: "adoption", label: "Adoption" },
   { id: "battery", label: "Battery & Grid" },
+  { id: "ml", label: "ML Data" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
@@ -34,7 +36,7 @@ export default function App() {
         setDataset(d);
         const types = Array.from(new Set(d.households.map((h) => h.type))) as HouseType[];
         const wealths = Array.from(new Set(d.households.map((h) => h.wealth))) as WealthLevel[];
-        const strats = Array.from(new Set(d.households.map((h) => h.strategy)));
+        const strats = Array.from(new Set(d.households.map((h) => h.strategy).filter(Boolean)));
         const start = d.system[0]?.timestamp ?? new Date();
         const end = d.system[d.system.length - 1]?.timestamp ?? new Date();
         setFilters({
@@ -167,6 +169,8 @@ function TabView({
       return <Adoption dataset={dataset} filters={filters} fd={fd} />;
     case "battery":
       return <BatteryGrid dataset={dataset} filters={filters} fd={fd} />;
+    case "ml":
+      return <MLData dataset={dataset} />;
   }
 }
 
