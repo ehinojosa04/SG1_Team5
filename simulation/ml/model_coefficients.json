@@ -1,0 +1,51 @@
+{
+  "model_type": "PolynomialRegression",
+  "is_polynomial": true,
+  "features": [
+    "GHI",
+    "Temperature",
+    "Relative Humidity",
+    "Solar Zenith Angle",
+    "Cloud Type",
+    "Clearsky GHI"
+  ],
+  "weights": [
+    -1.8884684058966008,
+    0.038444349181649504,
+    4.1157054053112345,
+    0.530866515674194,
+    -1.4322680117402773,
+    -2.1604354026359016,
+    0.43511314528643197,
+    0.16324486187921772,
+    1.2205154871632589,
+    -1.097384040551584,
+    -0.3290834043229596,
+    1.7052298877098238
+  ],
+  "bias": 5.203272425514928,
+  "feature_means": {
+    "GHI": 234.12860786682776,
+    "Temperature": 14.318895153711908,
+    "Relative Humidity": 76.83573566921734,
+    "Solar Zenith Angle": 84.88405356423682,
+    "Cloud Type": 2.196737817156665,
+    "Clearsky GHI": 290.40361122298293
+  },
+  "feature_stds": {
+    "GHI": 298.8752040705692,
+    "Temperature": 4.763987157308467,
+    "Relative Humidity": 17.44382537902772,
+    "Solar Zenith Angle": 37.64551513630166,
+    "Cloud Type": 2.650552839872256,
+    "Clearsky GHI": 329.09890944720036
+  },
+  "system_peak_w": 33000000,
+  "panel_peak_w": 5000,
+  "metrics": {
+    "mse": 42.8815541153232,
+    "mae": 5.134457994856811,
+    "rmse": 6.5484008823012045,
+    "r2": 0.32815006192066587
+  }
+}

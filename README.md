@@ -163,9 +163,33 @@ npm run preview    # serve the built app locally
      adoption vs. per-home savings.
   7. **Battery & Grid** — SoC by hour of day, grid imports/exports by
      hour, peak demand vs. peak production.
+  8. **ML Data** — raw NSRDB solar/weather dataset exploration (prepared
+     via `ml/prepare_data.py`).
 
 All charts are bespoke [D3.js](https://d3js.org/) visualisations with shared
 scales, tooltips and dark-mode styling.
+
+## ML pipeline (gradient descent, no scikit-learn)
+
+The neighborhood simulator can drive solar generation from a trained
+polynomial regression model instead of the synthetic sine curve. Set
+`SOLAR_MODEL_MODE = "ml"` in `config.py` after training.
+
+All commands run from `simulation/`:
+
+```bash
+# Prepare + clean NSRDB data (writes ml/cleaned_data.csv)
+python ml/data_prep.py
+
+# Train linear + polynomial models (writes ml/model_coefficients.json)
+python ml/train.py
+
+# Legacy dashboard ML tab data (writes ml_artifacts/ for the React ML Data tab)
+python ml/prepare_data.py
+```
+
+Training results (test set): Linear R²=0.228, Polynomial R²=0.328 (active model).
+See `HANDOFF.md` for full session notes and report checklist.
 
 ## Key configuration
 
@@ -183,6 +207,8 @@ All parameters in `simulation/config.py` are documented inline. Headlines:
 | `PRIORITY_OPTIONS` | `LOAD`, `CHARGE`, `PRODUCE` energy dispatch strategies |
 | `IMPORT_COST`, `EXPORT_COST` | grid tariff in $/kWh |
 | `RANDOM_SEED` | reproducibility (set to `None` for nondeterministic runs) |
+| `SOLAR_MODEL_MODE` | `"ml"` (trained model) or `"synthetic"` (sine fallback) |
+| `GRADIENT_ML_MODEL_PATH` | Path to `ml/model_coefficients.json` from `ml/train.py` |
 
 ## Outputs glossary
 

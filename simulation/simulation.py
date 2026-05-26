@@ -27,9 +27,10 @@ def runSimulation(env, weather, houses, house_logs, system_logs):
     time_factor = MINUTES_PER_TICK / 60
 
     while True:
-        # New day: refresh weather and each house's daily-scale state
+        weather.update(dt)
+
+        # New day: refresh each house's daily-scale state
         if dt.hour == 0 and dt.minute == 0:
-            weather.update(dt)
             for house in houses:
                 house.dailyUpdate(dt)
 

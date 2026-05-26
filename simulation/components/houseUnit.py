@@ -55,7 +55,7 @@ class HouseUnit:
         self.grid.update(dt.day)
 
     def stepUpdate(self, weather, dt, time_factor):
-        self.panel.update(dt.hour, weather.cloud_coverage)
+        self.panel.update(dt.hour)
         self.loadModel.update(dt.hour)
 
         generation_kWh = self.panel.generation * time_factor

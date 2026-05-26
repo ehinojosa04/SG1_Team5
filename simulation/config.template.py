@@ -30,11 +30,13 @@ GRID_CONSTRAINT = 20                # Max grid export limit in kW
 SOLAR_PEAK = 5                      # Peak solar panel output in kW (e.g., 5 kW)
 
 # ── ML Solar Predictor ───────────────────────────────────────────────────────
+# "ml" — gradient-descent model (ml/train.py); "synthetic" — math.sin fallback
 SOLAR_MODEL_MODE = "synthetic"
 ML_SIM_START = "2006-12-01"
 ML_DATA_DIR = os.path.join(REPO_ROOT, "137337_San_Francisco_2006")
 ML_ARTIFACTS_DIR = os.path.join(SIM_DIR, "ml_artifacts")
 ML_MODEL_PATH = os.path.join(ML_ARTIFACTS_DIR, "solar_linear_model.json")
+GRADIENT_ML_MODEL_PATH = os.path.join(SIM_DIR, "ml", "model_coefficients.json")
 ML_SITE_CAPACITY_MW = 33.0
 ML_WEATHER_TIME_SHIFT_HOURS = -8
 ML_INPUT_FILES = {
