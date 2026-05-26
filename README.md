@@ -184,19 +184,22 @@ capacity.
 `ml/model_coefficients.json` is already committed; set `"synthetic"` to fall
 back to the sine curve.
 
-MVP commands run from `simulation/`:
+ML commands run from `simulation/`:
 
 ```bash
 # Prepare dashboard + training artifacts (writes ml_artifacts/)
 python3 ml/prepare_data.py
 
-# Train the linear model (writes ml/model_coefficients.json)
+# Train/compare linear feature groups and save the active model
 python3 ml/train.py
 ```
 
-Training results on the held-out December test split: Linear R²=0.875 with
-RMSE=0.054 capacity factor. The active model is a from-scratch linear
-regression model to match the assignment scope.
+`ml/train.py` compares linear regression across `time_only`,
+`irradiance_only`, `weather_only`, `weather_time`, and `forecast_only`, then
+saves only the active `weather_time` model. Held-out December results:
+`weather_time` achieved R²=0.875 and RMSE=0.054 capacity factor, the best
+test score among the deployable feature groups. The active model is
+from-scratch linear regression to match the assignment scope.
 
 ## Key configuration
 
@@ -216,7 +219,8 @@ All parameters in `simulation/config.py` are documented inline. Headlines:
 | `RANDOM_SEED` | reproducibility (set to `None` for nondeterministic runs) |
 | `SOLAR_MODEL_MODE` | `"ml"` (trained model) or `"synthetic"` (sine fallback) |
 | `GRADIENT_ML_MODEL_PATH` | Path to `ml/model_coefficients.json` from `ml/train.py` |
-| `ML_MODEL_FEATURES` | Weather + time inputs used by training and simulation |
+| `ML_ACTIVE_FEATURE_GROUP` | Deployed feature group (`weather_time`) |
+| `ML_FEATURE_GROUPS` | Candidate feature groups used for comparison evidence |
 
 ## Outputs glossary
 

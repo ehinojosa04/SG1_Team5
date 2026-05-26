@@ -37,7 +37,6 @@ class SolarModel:
         self.bias = data["bias"]
         self.means = data["feature_means"]
         self.stds = data["feature_stds"]
-        self.is_poly = data.get("is_polynomial", False)
         self.site_capacity_mw = data.get(
             "site_capacity_mw",
             data.get("system_peak_w", 33_000_000) / 1_000_000,
@@ -48,10 +47,6 @@ class SolarModel:
             (raw_values[i] - self.means[self.features[i]]) / self.stds[self.features[i]]
             for i in range(len(self.features))
         ]
-
-    @staticmethod
-    def _expand_poly(values):
-        return list(values) + [value**2 for value in values]
 
     def _raw_predict(self, values):
         return self.bias + sum(
@@ -68,9 +63,6 @@ class SolarModel:
             return 0.0
 
         values = self._normalise(self._feature_values(features))
-        if self.is_poly:
-            values = self._expand_poly(values)
-
         prediction = self._raw_predict(values)
         if self.target != "capacity_factor":
             prediction = prediction / self.site_capacity_mw

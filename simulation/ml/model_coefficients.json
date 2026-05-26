@@ -1,6 +1,5 @@
 {
   "model_type": "LinearRegression",
-  "is_polynomial": false,
   "target": "capacity_factor",
   "feature_group": "weather_time",
   "features": [
@@ -137,6 +136,183 @@
       "mae": 0.037484883838829385,
       "rmse": 0.05398553058520855,
       "r2": 0.8749876480480949
+    }
+  },
+  "feature_group_comparison": {
+    "time_only": {
+      "features": [
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+      ],
+      "feature_count": 4,
+      "metrics": {
+        "train": {
+          "mse": 0.019951615356463333,
+          "mae": 0.11642862253308,
+          "rmse": 0.14125018710240114,
+          "r2": 0.6604767004414263
+        },
+        "validation": {
+          "mse": 0.01899212522780339,
+          "mae": 0.11834690544035265,
+          "rmse": 0.1378119197595164,
+          "r2": 0.4941488086852993
+        },
+        "test": {
+          "mse": 0.021260790901689506,
+          "mae": 0.12463309594715878,
+          "rmse": 0.1458108051609671,
+          "r2": 0.08803621161281083
+        }
+      }
+    },
+    "irradiance_only": {
+      "features": [
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle"
+      ],
+      "feature_count": 4,
+      "metrics": {
+        "train": {
+          "mse": 0.005472270740705878,
+          "mae": 0.04263483496900385,
+          "rmse": 0.07397479801057842,
+          "r2": 0.9068765418354754
+        },
+        "validation": {
+          "mse": 0.004349577421090217,
+          "mae": 0.037558691875707206,
+          "rmse": 0.06595132615111099,
+          "r2": 0.8841499361560134
+        },
+        "test": {
+          "mse": 0.003374596384596477,
+          "mae": 0.03308713847664879,
+          "rmse": 0.05809127632094579,
+          "r2": 0.8552495192956459
+        }
+      }
+    },
+    "weather_only": {
+      "features": [
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type_0",
+        "cloud_type_1",
+        "cloud_type_10",
+        "cloud_type_2",
+        "cloud_type_3",
+        "cloud_type_4",
+        "cloud_type_6",
+        "cloud_type_7",
+        "cloud_type_8",
+        "cloud_type_9"
+      ],
+      "feature_count": 18,
+      "metrics": {
+        "train": {
+          "mse": 0.005123931596241658,
+          "mae": 0.04589219215533539,
+          "rmse": 0.07158164287190996,
+          "r2": 0.9128043453531784
+        },
+        "validation": {
+          "mse": 0.004147787132600738,
+          "mae": 0.042585637943719064,
+          "rmse": 0.06440331616152027,
+          "r2": 0.8895245773087954
+        },
+        "test": {
+          "mse": 0.0032603834234652385,
+          "mae": 0.04216579113499395,
+          "rmse": 0.05709976728030718,
+          "r2": 0.860148588441182
+        }
+      }
+    },
+    "weather_time": {
+      "features": [
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type_0",
+        "cloud_type_1",
+        "cloud_type_10",
+        "cloud_type_2",
+        "cloud_type_3",
+        "cloud_type_4",
+        "cloud_type_6",
+        "cloud_type_7",
+        "cloud_type_8",
+        "cloud_type_9",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos"
+      ],
+      "feature_count": 22,
+      "metrics": {
+        "train": {
+          "mse": 0.004916346241502718,
+          "mae": 0.04667423878072078,
+          "rmse": 0.0701166616540086,
+          "r2": 0.9163368946391274
+        },
+        "validation": {
+          "mse": 0.0038992967310945963,
+          "mae": 0.0411743719616575,
+          "rmse": 0.06244434907255096,
+          "r2": 0.8961430659784116
+        },
+        "test": {
+          "mse": 0.002914437512566488,
+          "mae": 0.037484883838829385,
+          "rmse": 0.05398553058520855,
+          "r2": 0.8749876480480949
+        }
+      }
+    },
+    "forecast_only": {
+      "features": [
+        "da_mw",
+        "ha4_mw"
+      ],
+      "feature_count": 2,
+      "metrics": {
+        "train": {
+          "mse": 0.006006017837967842,
+          "mae": 0.04145439037558928,
+          "rmse": 0.07749850216596345,
+          "r2": 0.8977935892847945
+        },
+        "validation": {
+          "mse": 0.004788505764359547,
+          "mae": 0.034482910697134106,
+          "rmse": 0.06919903008250583,
+          "r2": 0.8724591736593795
+        },
+        "test": {
+          "mse": 0.0036925606525531045,
+          "mae": 0.028807335318493416,
+          "rmse": 0.06076644347461109,
+          "r2": 0.8416107087867459
+        }
+      }
     }
   }
 }

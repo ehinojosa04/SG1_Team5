@@ -52,7 +52,6 @@ SOLAR_MODEL_MODE = "ml"
 ML_SIM_START = "2006-12-01"
 ML_DATA_DIR = os.path.join(REPO_ROOT, "137337_San_Francisco_2006")
 ML_ARTIFACTS_DIR = os.path.join(SIM_DIR, "ml_artifacts")
-ML_MODEL_PATH = os.path.join(ML_ARTIFACTS_DIR, "solar_linear_model.json")
 GRADIENT_ML_MODEL_PATH = os.path.join(SIM_DIR, "ml", "model_coefficients.json")
 ML_SITE_CAPACITY_MW = 33.0
 ML_WEATHER_TIME_SHIFT_HOURS = -8
@@ -63,23 +62,49 @@ ML_INPUT_FILES = {
     "weather": "137337_Weather_30m.csv",
 }
 ML_ACTIVE_FEATURE_GROUP = "weather_time"
-ML_MODEL_FEATURES = [
-    "temperature_c",
-    "relative_humidity_pct",
-    "dhi",
-    "dni",
-    "ghi",
-    "solar_zenith_angle",
-    "wind_speed",
-    "pressure",
-    "cloud_type",
-    "hour_sin",
-    "hour_cos",
-    "day_sin",
-    "day_cos",
-]
 ML_FEATURE_GROUPS = {
-    ML_ACTIVE_FEATURE_GROUP: ML_MODEL_FEATURES,
+    "time_only": [
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+    ],
+    "irradiance_only": [
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+    ],
+    "weather_only": [
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type",
+    ],
+    "weather_time": [
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type",
+        "hour_sin",
+        "hour_cos",
+        "day_sin",
+        "day_cos",
+    ],
+    "forecast_only": [
+        "da_mw",
+        "ha4_mw",
+    ],
 }
 
 # ── Weather ──────────────────────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 """
-Train the Green Grid solar generation model from the canonical ML dataset.
+Train and compare Green Grid solar generation models.
 
-The MVP model is a from-scratch linear regression that predicts actual solar
-``capacity_factor`` from shifted weather + time features.
+Every candidate is the same from-scratch linear regression; only the feature
+group changes. The deployed model remains the configured ``weather_time`` group.
 
 Run from the simulation/ directory:
     python ml/train.py
@@ -26,6 +26,7 @@ from ml.linear_regression import LinearRegression
 COEFFICIENTS_FILE = Path(__file__).resolve().parent / "model_coefficients.json"
 LINEAR_ITERATIONS = 600
 LINEAR_LEARNING_RATE = 0.05
+SPLITS = ["train", "validation", "test"]
 
 
 def z_score_params(rows, features):
@@ -69,7 +70,7 @@ def metric_values(model, X, y):
 
 def print_metrics(model_name, metrics_by_split):
     print(f"\n  {model_name}")
-    for split_name in ["train", "validation", "test"]:
+    for split_name in SPLITS:
         metrics = metrics_by_split[split_name]
         print(
             f"    {split_name:<10} "
@@ -85,15 +86,62 @@ def rows_by_split(df, features):
     records = df[cols].to_dict("records")
     return {
         split_name: [row for row in records if row["split"] == split_name]
-        for split_name in ["train", "validation", "test"]
+        for split_name in SPLITS
     }
 
 
 def evaluate_model(model, X_by_split, y_by_split):
     return {
         split_name: metric_values(model, X_by_split[split_name], y_by_split[split_name])
-        for split_name in ["train", "validation", "test"]
+        for split_name in SPLITS
     }
+
+
+def train_feature_group(df, group_name, verbose=False):
+    features = prepare_data.feature_columns(df, group_name)
+    split_rows = rows_by_split(df, features)
+    means, stds = z_score_params(split_rows["train"], features)
+    X_by_split = {
+        split_name: normalise(rows, features, means, stds)
+        for split_name, rows in split_rows.items()
+    }
+    y_by_split = {
+        split_name: target_values(rows)
+        for split_name, rows in split_rows.items()
+    }
+
+    model = LinearRegression()
+    model.fit(
+        X_by_split["train"],
+        y_by_split["train"],
+        learning_rate=LINEAR_LEARNING_RATE,
+        iterations=LINEAR_ITERATIONS,
+        log_every=150,
+        verbose=verbose,
+    )
+    return {
+        "model": model,
+        "features": features,
+        "means": means,
+        "stds": stds,
+        "metrics": evaluate_model(model, X_by_split, y_by_split),
+        "split_counts": {split_name: len(rows) for split_name, rows in split_rows.items()},
+    }
+
+
+def print_feature_group_comparison(results):
+    print("\nFeature-group comparison (same LinearRegression)")
+    print(f"{'group':<18} {'features':>8} {'val_r2':>9} {'test_r2':>9} {'test_rmse':>11}")
+    print("-" * 60)
+    for group_name, result in results.items():
+        metrics = result["metrics"]
+        print(
+            f"{group_name:<18} "
+            f"{len(result['features']):>8} "
+            f"{metrics['validation']['r2']:>9.4f} "
+            f"{metrics['test']['r2']:>9.4f} "
+            f"{metrics['test']['rmse']:>11.6f}"
+        )
 
 
 def main():
@@ -101,53 +149,51 @@ def main():
     df = prepare_data.build_dataset(prepare_data.DEFAULT_VARIANT)
     congruence = prepare_data.validate_dataset(df, prepare_data.DEFAULT_VARIANT)
     feature_group = config.ML_ACTIVE_FEATURE_GROUP
-    features = prepare_data.feature_columns(df, feature_group)
     cloud_cols = prepare_data.cloud_type_columns(df)
 
     print(f"      Rows: {len(df):,}")
     print(f"      Target: {prepare_data.TARGET_COLUMN}")
-    print(f"      Feature group: {feature_group} ({len(features)} expanded features)")
+    print(f"      Active feature group: {feature_group}")
     print(f"      Actual/GHI correlation: {congruence['actual_ghi_correlation']:.4f}")
 
     print("\n[2/4] Splitting by prepared chronological labels ...")
-    split_rows = rows_by_split(df, features)
+    active_features = prepare_data.feature_columns(df, feature_group)
+    split_rows = rows_by_split(df, active_features)
     for split_name, rows in split_rows.items():
         print(f"      {split_name:<10} {len(rows):,} rows")
 
-    print("\n[3/4] Normalising from train split only ...")
-    means, stds = z_score_params(split_rows["train"], features)
-    X_by_split = {
-        split_name: normalise(rows, features, means, stds)
-        for split_name, rows in split_rows.items()
-    }
-    y_by_split = {split_name: target_values(rows) for split_name, rows in split_rows.items()}
+    print("\n[3/4] Training feature-group comparison ...")
+    results = {}
+    for group_name in config.ML_FEATURE_GROUPS:
+        print(f"      {group_name}")
+        results[group_name] = train_feature_group(
+            df,
+            group_name,
+            verbose=(group_name == feature_group),
+        )
 
-    print("\n[4/4] Training from-scratch linear regression ...")
-    linear = LinearRegression()
-    linear.fit(
-        X_by_split["train"],
-        y_by_split["train"],
-        learning_rate=LINEAR_LEARNING_RATE,
-        iterations=LINEAR_ITERATIONS,
-        log_every=150,
-        verbose=True,
-    )
+    if feature_group not in results:
+        raise ValueError(f"Active feature group was not trained: {feature_group}")
 
-    print("\nEvaluating model ...")
-    linear_metrics = evaluate_model(linear, X_by_split, y_by_split)
-    print_metrics("LinearRegression", linear_metrics)
+    print_feature_group_comparison(results)
+
+    print("\n[4/4] Saving active model ...")
+    active = results[feature_group]
+    linear = active["model"]
+    features = active["features"]
+    linear_metrics = active["metrics"]
+    print_metrics(f"LinearRegression active group ({feature_group})", linear_metrics)
 
     payload = {
         "model_type": "LinearRegression",
-        "is_polynomial": False,
         "target": prepare_data.TARGET_COLUMN,
         "feature_group": feature_group,
         "features": features,
         "cloud_type_columns": cloud_cols,
         "weights": linear.weights,
         "bias": linear.bias,
-        "feature_means": means,
-        "feature_stds": stds,
+        "feature_means": active["means"],
+        "feature_stds": active["stds"],
         "site_capacity_mw": config.ML_SITE_CAPACITY_MW,
         "weather_time_shift_hours": config.ML_WEATHER_TIME_SHIFT_HOURS,
         "training_variant": prepare_data.DEFAULT_VARIANT,
@@ -156,6 +202,14 @@ def main():
             "iterations": LINEAR_ITERATIONS,
         },
         "metrics": linear_metrics,
+        "feature_group_comparison": {
+            group_name: {
+                "features": result["features"],
+                "feature_count": len(result["features"]),
+                "metrics": result["metrics"],
+            }
+            for group_name, result in results.items()
+        },
     }
 
     with open(COEFFICIENTS_FILE, "w", encoding="utf-8") as f:
