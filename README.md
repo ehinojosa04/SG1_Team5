@@ -176,25 +176,27 @@ scales, tooltips and dark-mode styling.
 
 ## ML pipeline (gradient descent, no scikit-learn)
 
-The neighborhood simulator drives solar generation from a trained polynomial
-regression model by default (`SOLAR_MODEL_MODE = "ml"` in `config.py`).
+The neighborhood simulator drives solar generation from a trained linear
+regression model by default (`SOLAR_MODEL_MODE = "ml"` in `config.py`). The
+model predicts actual solar `capacity_factor` from shifted 15-minute weather
+and cyclic time features, then scales that prediction by each household's PV
+capacity.
 `ml/model_coefficients.json` is already committed; set `"synthetic"` to fall
 back to the sine curve.
 
-All commands run from `simulation/`:
+MVP commands run from `simulation/`:
 
 ```bash
-# Prepare + clean NSRDB data (writes ml/cleaned_data.csv)
-python3 ml/data_prep.py
-
-# Train linear + polynomial models (writes ml/model_coefficients.json)
-python3 ml/train.py
-
-# Dashboard ML Data tab (writes ml_artifacts/ for /ml-data/*)
+# Prepare dashboard + training artifacts (writes ml_artifacts/)
 python3 ml/prepare_data.py
+
+# Train the linear model (writes ml/model_coefficients.json)
+python3 ml/train.py
 ```
 
-Training results (test set): Linear R²=0.228, Polynomial R²=0.328 (active model).
+Training results on the held-out December test split: Linear R²=0.875 with
+RMSE=0.054 capacity factor. The active model is a from-scratch linear
+regression model to match the assignment scope.
 
 ## Key configuration
 
@@ -214,6 +216,7 @@ All parameters in `simulation/config.py` are documented inline. Headlines:
 | `RANDOM_SEED` | reproducibility (set to `None` for nondeterministic runs) |
 | `SOLAR_MODEL_MODE` | `"ml"` (trained model) or `"synthetic"` (sine fallback) |
 | `GRADIENT_ML_MODEL_PATH` | Path to `ml/model_coefficients.json` from `ml/train.py` |
+| `ML_MODEL_FEATURES` | Weather + time inputs used by training and simulation |
 
 ## Outputs glossary
 

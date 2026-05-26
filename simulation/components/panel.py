@@ -42,26 +42,25 @@ class Panel:
                   "Falling back to sinusoidal model.")
             return None
 
-    def update(self, hour: float | None = None):
+    def update(self, dt=None, hour: float | None = None):
         """Compute solar generation in kW for the current tick."""
         if not self.enabled:
             self.generation = 0.0
             return
 
+        if isinstance(dt, (int, float)) and hour is None:
+            hour = float(dt)
+            dt = None
+
         if self._model is not None:
-            raw_watts = self._model.predict(
-                ghi=self.weather.ghi,
-                temperature=self.weather.temperature,
-                humidity=self.weather.humidity,
-                zenith=self.weather.zenith,
-                cloud_type=self.weather.cloud_type,
-                clearsky_ghi=self.weather.clearsky_ghi,
-            )
-            # Model is calibrated for a 5 kW reference panel; scale to this house.
-            reference_kw = 5.0
-            self.generation = max(0.0, (raw_watts / 1000.0) * (self.peak_kw / reference_kw))
+            self.generation = self._model.predict_kw(self.weather.ml_features, self.peak_kw)
         else:
-            tick_hour = hour if hour is not None else (self.env.now % 24)
+            if hour is not None:
+                tick_hour = hour
+            elif dt is not None:
+                tick_hour = dt.hour + dt.minute / 60
+            else:
+                tick_hour = self.env.now % 24
             sun_angle = (tick_hour - 6) * (math.pi / 12)
             self.generation = max(
                 0.0,

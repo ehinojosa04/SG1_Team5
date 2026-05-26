@@ -209,6 +209,72 @@ def _configured_features(df: pd.DataFrame) -> list[str]:
     return features
 
 
+def cloud_type_columns(df: pd.DataFrame) -> list[str]:
+    """Return the one-hot cloud-type columns generated for a prepared dataset."""
+    return _cloud_type_columns(df)
+
+
+def expanded_feature_groups(df: pd.DataFrame) -> dict[str, list[str]]:
+    """Return configured feature groups with categorical placeholders expanded."""
+    return _expanded_feature_groups(df)
+
+
+def feature_columns(
+    df: pd.DataFrame,
+    feature_group: str | None = None,
+) -> list[str]:
+    """Return model input columns for the requested feature group."""
+    group_name = feature_group or getattr(config, "ML_ACTIVE_FEATURE_GROUP", "weather_time")
+    groups = _expanded_feature_groups(df)
+    if group_name not in groups:
+        raise ValueError(f"Unknown ML feature group: {group_name}")
+    return groups[group_name]
+
+
+def build_weather_feature_lookup(
+    variant: str = DEFAULT_VARIANT,
+    feature_group: str | None = None,
+) -> dict[tuple[int, int, int, int], dict]:
+    """Build a 15-minute weather/feature lookup for simulator inference.
+
+    Keys are ``(month, day, hour, minute)`` so simulation years can map onto the
+    2006 source data while preserving the 15-minute tick structure.
+    """
+    df = build_dataset(variant)
+    features = feature_columns(df, feature_group)
+    lookup: dict[tuple[int, int, int, int], dict] = {}
+
+    weather_cols = [
+        "temperature_c",
+        "relative_humidity_pct",
+        "dhi",
+        "dni",
+        "ghi",
+        "solar_zenith_angle",
+        "wind_speed",
+        "pressure",
+        "cloud_type",
+    ]
+    selected_cols = list(dict.fromkeys([TIMESTAMP_COLUMN, *features, *weather_cols]))
+    for row in df[selected_cols].to_dict("records"):
+        ts = pd.Timestamp(row[TIMESTAMP_COLUMN])
+        lookup[(ts.month, ts.day, ts.hour, ts.minute)] = {
+            "timestamp": ts,
+            "features": {col: float(row[col]) for col in features},
+            "temperature_c": float(row["temperature_c"]),
+            "relative_humidity_pct": float(row["relative_humidity_pct"]),
+            "dhi": float(row["dhi"]),
+            "dni": float(row["dni"]),
+            "ghi": float(row["ghi"]),
+            "solar_zenith_angle": float(row["solar_zenith_angle"]),
+            "wind_speed": float(row["wind_speed"]),
+            "pressure": float(row["pressure"]),
+            "cloud_type": int(row["cloud_type"]),
+        }
+
+    return lookup
+
+
 def _variant_input_files(variant: str) -> dict[str, str]:
     return {
         key: str(_input_path(key, variant).name)
@@ -287,7 +353,7 @@ def _weather_flag_counts(df: pd.DataFrame) -> dict:
     }
 
 
-def validate_dataset(df: pd.DataFrame, variant: str) -> dict:
+def validate_dataset(df: pd.DataFrame, variant: str = DEFAULT_VARIANT) -> dict:
     features = _configured_features(df)
     missing_columns = [c for c in [TARGET_COLUMN, *features] if c not in df.columns]
     if missing_columns:

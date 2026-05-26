@@ -1,182 +1,169 @@
 """
-Training script for the Green Grid solar generation ML model.
+Train the Green Grid solar generation model from the canonical ML dataset.
 
-Steps performed:
-  1. Load and clean the NSRDB dataset via data_prep.py
-  2. Z-score normalise all features (saves means/stds to JSON)
-  3. Split chronologically: 80% train / 20% test
-  4. Train LinearRegression and PolynomialRegression (both from scratch)
-  5. Print a side-by-side metrics comparison (MSE, MAE, RMSE, R²)
-  6. Save the best model's coefficients to model_coefficients.json
+The MVP model is a from-scratch linear regression that predicts actual solar
+``capacity_factor`` from shifted weather + time features.
 
 Run from the simulation/ directory:
     python ml/train.py
 """
 
-import csv
+from __future__ import annotations
+
 import json
 import math
-import os
 import sys
+from pathlib import Path
 
-# Allow imports from simulation/ regardless of CWD
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SIM_DIR = Path(__file__).resolve().parents[1]
+if str(SIM_DIR) not in sys.path:
+    sys.path.insert(0, str(SIM_DIR))
 
-from ml.data_prep           import load_and_prepare, print_data_dictionary
-from ml.linear_regression   import LinearRegression
-from ml.polynomial_regression import PolynomialRegression
+import config
+from ml import prepare_data
+from ml.linear_regression import LinearRegression
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-_ML_DIR           = os.path.dirname(os.path.abspath(__file__))
-COEFFICIENTS_FILE = os.path.join(_ML_DIR, 'model_coefficients.json')
-
-FEATURES = ['GHI', 'Temperature', 'Relative Humidity',
-            'Solar Zenith Angle', 'Cloud Type', 'Clearsky GHI']
-TARGET   = 'Power_MW'
-
-# Scaling: the DPV dataset represents a 33 MW system; our panel is 5 kW.
-SYSTEM_PEAK_W = 33_000_000   # 33 MW in watts
-PANEL_PEAK_W  = 5_000        # 5 kW
+COEFFICIENTS_FILE = Path(__file__).resolve().parent / "model_coefficients.json"
+LINEAR_ITERATIONS = 600
+LINEAR_LEARNING_RATE = 0.05
 
 
-# ---------------------------------------------------------------------------
-# Normalisation helpers
-# ---------------------------------------------------------------------------
-
-def z_score_params(data, features):
-    """Compute mean and std for each feature column."""
+def z_score_params(rows, features):
+    """Compute feature means/stds from training rows only."""
     means, stds = {}, {}
-    for f in features:
-        vals  = [row[f] for row in data]
-        mean  = sum(vals) / len(vals)
-        std   = math.sqrt(sum((v - mean) ** 2 for v in vals) / len(vals))
-        means[f] = mean
-        stds[f]  = std if std > 1e-9 else 1.0
+    for feature in features:
+        values = [float(row[feature]) for row in rows]
+        mean = sum(values) / len(values)
+        std = math.sqrt(sum((value - mean) ** 2 for value in values) / len(values))
+        means[feature] = mean
+        stds[feature] = std if std > 1e-9 else 1.0
     return means, stds
 
 
-def normalise(data, features, means, stds):
-    """Return a list of normalised feature vectors (list of lists)."""
-    X = []
-    for row in data:
-        X.append([(row[f] - means[f]) / stds[f] for f in features])
-    return X
+def normalise(rows, features, means, stds):
+    return [
+        [(float(row[feature]) - means[feature]) / stds[feature] for feature in features]
+        for row in rows
+    ]
 
 
-# ---------------------------------------------------------------------------
-# Train / test split (chronological – no shuffling)
-# ---------------------------------------------------------------------------
-
-def split(X, y, test_ratio=0.2):
-    n     = len(X)
-    split = int(n * (1.0 - test_ratio))
-    return X[:split], X[split:], y[:split], y[split:]
+def target_values(rows):
+    return [float(row[prepare_data.TARGET_COLUMN]) for row in rows]
 
 
-# ---------------------------------------------------------------------------
-# Metrics table printer
-# ---------------------------------------------------------------------------
-
-def print_metrics(name, model, X_test, y_test):
-    mse  = model.mse(X_test,  y_test)
-    mae  = model.mae(X_test,  y_test)
-    rmse = model.rmse(X_test, y_test)
-    r2   = model.r2(X_test,   y_test)
-    print(f"  {name:<25}  MSE={mse:>9.5f}  MAE={mae:>8.5f}  "
-          f"RMSE={rmse:>8.5f}  R²={r2:>7.4f}")
-    return {'mse': mse, 'mae': mae, 'rmse': rmse, 'r2': r2}
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def main():
-    # ── 1. Load data ──────────────────────────────────────────────────────
-    print("\n[1/5] Loading and preparing dataset …")
-    data = load_and_prepare(verbose=False)
-    print_data_dictionary(data)
-    print(f"      Total daytime samples: {len(data)}")
-
-    # ── 2. Normalise features ─────────────────────────────────────────────
-    print("\n[2/5] Normalising features (z-score) …")
-    means, stds = z_score_params(data, FEATURES)
-    for f in FEATURES:
-        print(f"  {f:<28}  μ={means[f]:>8.3f}  σ={stds[f]:>8.3f}")
-
-    X_norm = normalise(data, FEATURES, means, stds)
-    y      = [row[TARGET] for row in data]
-
-    # ── 3. Split ──────────────────────────────────────────────────────────
-    print("\n[3/5] Splitting chronologically (80 % train / 20 % test) …")
-    X_tr, X_te, y_tr, y_te = split(X_norm, y)
-    print(f"      Train: {len(X_tr)} samples   Test: {len(X_te)} samples")
-
-    # ── 4. Train both models ──────────────────────────────────────────────
-    print("\n[4/5] Training models …")
-
-    print("\n  ── Linear Regression (gradient descent) ──")
-    lr = LinearRegression()
-    lr.fit(X_tr, y_tr, learning_rate=0.05, iterations=2000,
-           log_every=400, verbose=True)
-
-    print("\n  ── Polynomial Regression (degree-2 features) ──")
-    pr = PolynomialRegression()
-    pr.fit(X_tr, y_tr, learning_rate=0.005, iterations=2000,
-           log_every=400, verbose=True)
-
-    # ── 5. Evaluate and compare ───────────────────────────────────────────
-    print("\n[5/5] Model comparison on hold-out test set:")
-    print("-" * 75)
-    lr_metrics = print_metrics("LinearRegression",    lr, X_te, y_te)
-    pr_metrics = print_metrics("PolynomialRegression", pr, X_te, y_te)
-    print("-" * 75)
-
-    # Pick the model with the higher R²
-    if lr_metrics['r2'] >= pr_metrics['r2']:
-        best_model   = lr
-        best_name    = "LinearRegression"
-        best_metrics = lr_metrics
-        is_poly      = False
-        best_weights = lr.weights
-        best_bias    = lr.bias
-    else:
-        best_model   = pr
-        best_name    = "PolynomialRegression"
-        best_metrics = pr_metrics
-        is_poly      = True
-        best_weights = pr.weights
-        best_bias    = pr.bias
-
-    print(f"\n  Winner: {best_name}  (R²={best_metrics['r2']:.4f})")
-
-    # ── Save coefficients ─────────────────────────────────────────────────
-    payload = {
-        'model_type':      best_name,
-        'is_polynomial':   is_poly,
-        'features':        FEATURES,
-        'weights':         best_weights,
-        'bias':            best_bias,
-        'feature_means':   means,
-        'feature_stds':    stds,
-        'system_peak_w':   SYSTEM_PEAK_W,
-        'panel_peak_w':    PANEL_PEAK_W,
-        'metrics': {
-            'mse':  best_metrics['mse'],
-            'mae':  best_metrics['mae'],
-            'rmse': best_metrics['rmse'],
-            'r2':   best_metrics['r2'],
-        }
+def metric_values(model, X, y):
+    predictions = model.predict_batch(X)
+    n = len(y)
+    mse = sum((predictions[i] - y[i]) ** 2 for i in range(n)) / n
+    mae = sum(abs(predictions[i] - y[i]) for i in range(n)) / n
+    mean_y = sum(y) / n
+    ss_res = sum((y[i] - predictions[i]) ** 2 for i in range(n))
+    ss_tot = sum((y[i] - mean_y) ** 2 for i in range(n))
+    return {
+        "mse": mse,
+        "mae": mae,
+        "rmse": math.sqrt(mse),
+        "r2": 1.0 - ss_res / ss_tot if ss_tot else 0.0,
     }
 
-    with open(COEFFICIENTS_FILE, 'w', encoding='utf-8') as f:
+
+def print_metrics(model_name, metrics_by_split):
+    print(f"\n  {model_name}")
+    for split_name in ["train", "validation", "test"]:
+        metrics = metrics_by_split[split_name]
+        print(
+            f"    {split_name:<10} "
+            f"MSE={metrics['mse']:.6f}  "
+            f"MAE={metrics['mae']:.6f}  "
+            f"RMSE={metrics['rmse']:.6f}  "
+            f"R2={metrics['r2']:.4f}"
+        )
+
+
+def rows_by_split(df, features):
+    cols = [*features, prepare_data.TARGET_COLUMN, "split"]
+    records = df[cols].to_dict("records")
+    return {
+        split_name: [row for row in records if row["split"] == split_name]
+        for split_name in ["train", "validation", "test"]
+    }
+
+
+def evaluate_model(model, X_by_split, y_by_split):
+    return {
+        split_name: metric_values(model, X_by_split[split_name], y_by_split[split_name])
+        for split_name in ["train", "validation", "test"]
+    }
+
+
+def main():
+    print("\n[1/4] Building validated 15-minute dataset ...")
+    df = prepare_data.build_dataset(prepare_data.DEFAULT_VARIANT)
+    congruence = prepare_data.validate_dataset(df, prepare_data.DEFAULT_VARIANT)
+    feature_group = config.ML_ACTIVE_FEATURE_GROUP
+    features = prepare_data.feature_columns(df, feature_group)
+    cloud_cols = prepare_data.cloud_type_columns(df)
+
+    print(f"      Rows: {len(df):,}")
+    print(f"      Target: {prepare_data.TARGET_COLUMN}")
+    print(f"      Feature group: {feature_group} ({len(features)} expanded features)")
+    print(f"      Actual/GHI correlation: {congruence['actual_ghi_correlation']:.4f}")
+
+    print("\n[2/4] Splitting by prepared chronological labels ...")
+    split_rows = rows_by_split(df, features)
+    for split_name, rows in split_rows.items():
+        print(f"      {split_name:<10} {len(rows):,} rows")
+
+    print("\n[3/4] Normalising from train split only ...")
+    means, stds = z_score_params(split_rows["train"], features)
+    X_by_split = {
+        split_name: normalise(rows, features, means, stds)
+        for split_name, rows in split_rows.items()
+    }
+    y_by_split = {split_name: target_values(rows) for split_name, rows in split_rows.items()}
+
+    print("\n[4/4] Training from-scratch linear regression ...")
+    linear = LinearRegression()
+    linear.fit(
+        X_by_split["train"],
+        y_by_split["train"],
+        learning_rate=LINEAR_LEARNING_RATE,
+        iterations=LINEAR_ITERATIONS,
+        log_every=150,
+        verbose=True,
+    )
+
+    print("\nEvaluating model ...")
+    linear_metrics = evaluate_model(linear, X_by_split, y_by_split)
+    print_metrics("LinearRegression", linear_metrics)
+
+    payload = {
+        "model_type": "LinearRegression",
+        "is_polynomial": False,
+        "target": prepare_data.TARGET_COLUMN,
+        "feature_group": feature_group,
+        "features": features,
+        "cloud_type_columns": cloud_cols,
+        "weights": linear.weights,
+        "bias": linear.bias,
+        "feature_means": means,
+        "feature_stds": stds,
+        "site_capacity_mw": config.ML_SITE_CAPACITY_MW,
+        "weather_time_shift_hours": config.ML_WEATHER_TIME_SHIFT_HOURS,
+        "training_variant": prepare_data.DEFAULT_VARIANT,
+        "hyperparameters": {
+            "learning_rate": LINEAR_LEARNING_RATE,
+            "iterations": LINEAR_ITERATIONS,
+        },
+        "metrics": linear_metrics,
+    }
+
+    with open(COEFFICIENTS_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
+        f.write("\n")
 
-    print(f"\n  Coefficients saved → {COEFFICIENTS_FILE}")
-    print("  Run python3 simulation.py to start the neighborhood simulation with the ML model.\n")
+    print(f"\n  Active linear model saved -> {COEFFICIENTS_FILE}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
