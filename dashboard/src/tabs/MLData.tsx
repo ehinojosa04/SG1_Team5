@@ -17,6 +17,9 @@ const COLORS = {
   da: "#f59e0b",
   ha4: "#34d399",
   diff: "#a78bfa",
+  active: "#34d399",
+  muted: "#64748b",
+  prediction: "#f97316",
 };
 
 const dayKey = (d: Date) => +new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -60,6 +63,19 @@ function sampleWeek(rows: MLPreparedRow[]) {
 
 const splitSummary = (counts: Record<string, number>) =>
   `tr ${fmt.int(counts.train)} · val ${fmt.int(counts.validation)} · test ${fmt.int(counts.test)}`;
+
+function predictCapacityFactor(row: MLPreparedRow, model: NonNullable<MLDataset["model"]>) {
+  if (row.ghi <= 1) return 0;
+  const value =
+    model.bias +
+    model.features.reduce((sum, feature, index) => {
+      const raw = Number(row[feature] ?? 0);
+      const mean = model.feature_means[feature] ?? 0;
+      const std = model.feature_stds[feature] || 1;
+      return sum + model.weights[index] * ((raw - mean) / std);
+    }, 0);
+  return Math.max(0, Math.min(1, value));
+}
 
 export default function MLData({ dataset }: Props) {
   const ml = dataset.mlData;
@@ -142,6 +158,38 @@ function MLDataContent({ ml }: { ml: MLDataset }) {
         values: [{ name: "Rows", value, color: "var(--color-accent)" }],
       }));
   }, [ml.base]);
+
+  const featureComparison = useMemo(() => {
+    const comparison = ml.model?.feature_group_comparison;
+    if (!comparison) return [];
+    return Object.entries(comparison).map(([label, result]) => ({
+      label,
+      values: [
+        {
+          name: "Test R²",
+          value: result.metrics.test.r2,
+          color: label === ml.model?.feature_group ? COLORS.active : COLORS.muted,
+        },
+      ],
+    }));
+  }, [ml.model]);
+
+  const predictionScatter = useMemo<ScatterPoint[]>(() => {
+    if (!ml.model) return [];
+    return ml.base
+      .filter((r) => r.split === "test")
+      .filter((_, i) => i % 3 === 0)
+      .map((r) => {
+        const predicted = predictCapacityFactor(r, ml.model!);
+        return {
+          x: r.capacity_factor,
+          y: predicted,
+          color: COLORS.prediction,
+          size: Math.max(1, r.ghi / 120),
+          label: r.timestamp.toISOString().slice(0, 16).replace("T", " "),
+        };
+      });
+  }, [ml.base, ml.model]);
 
   const variantDiff = ml.summary.variant_comparison.actual_mw;
 
@@ -230,6 +278,34 @@ function MLDataContent({ ml }: { ml: MLDataset }) {
             markers={false}
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        {featureComparison.length ? (
+          <div className="card">
+            <div className="card-title">Feature group comparison</div>
+            <BarChart
+              groups={featureComparison}
+              height={340}
+              yLabel="Test R²"
+              valueFormatter={(v) => fmt.num(v, 3)}
+            />
+          </div>
+        ) : null}
+
+        {predictionScatter.length ? (
+          <div className="card">
+            <div className="card-title">Predicted vs actual test set</div>
+            <ScatterPlot
+              points={predictionScatter}
+              height={340}
+              xLabel="Actual capacity factor"
+              yLabel="Predicted capacity factor"
+              xFmt={(v) => fmt.num(v, 2)}
+              yFmt={(v) => fmt.num(v, 2)}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

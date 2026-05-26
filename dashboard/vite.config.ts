@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "data");
 const ML_DATA_DIR = path.join(__dirname, "..", "simulation", "ml_artifacts");
+const ML_MODEL_DIR = path.join(__dirname, "..", "simulation", "ml");
 
 function serveGeneratedData(prefix: string, rootDir: string): Plugin {
   return {
@@ -44,6 +45,7 @@ export default defineConfig({
     tailwindcss(),
     serveGeneratedData("/data", DATA_DIR),
     serveGeneratedData("/ml-data", ML_DATA_DIR),
+    serveGeneratedData("/ml-model", ML_MODEL_DIR),
   ],
   server: {
     port: 5173,

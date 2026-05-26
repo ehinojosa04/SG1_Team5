@@ -115,6 +115,7 @@ export interface AdoptionRow {
 }
 
 export interface MLPreparedRow {
+  [key: string]: Date | number | string;
   timestamp: Date;
   actual_mw: number;
   capacity_factor: number;
@@ -132,6 +133,32 @@ export interface MLPreparedRow {
   cloud_fill_flag: number;
   fill_flag: number;
   split: "train" | "validation" | "test";
+}
+
+export interface MLModelMetrics {
+  mse: number;
+  mae: number;
+  rmse: number;
+  r2: number;
+}
+
+export interface MLFeatureGroupComparison {
+  features: string[];
+  feature_count: number;
+  metrics: Record<"train" | "validation" | "test", MLModelMetrics>;
+}
+
+export interface MLModelCoefficients {
+  model_type: string;
+  target: "capacity_factor";
+  feature_group: string;
+  features: string[];
+  weights: number[];
+  bias: number;
+  feature_means: Record<string, number>;
+  feature_stds: Record<string, number>;
+  metrics: Record<"train" | "validation" | "test", MLModelMetrics>;
+  feature_group_comparison?: Record<string, MLFeatureGroupComparison>;
 }
 
 export interface MLVariantSummary {
@@ -187,6 +214,7 @@ export interface MLDataset {
   summary: MLDataSummary;
   base: MLPreparedRow[];
   alt1: MLPreparedRow[];
+  model: MLModelCoefficients | null;
 }
 
 export interface Dataset {
