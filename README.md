@@ -7,12 +7,16 @@ story.
 
 The simulator models ~100 households with different archetypes (studio,
 small, large), wealth levels (low → luxury), probabilistic solar/battery
-adoption, and stochastic appliance-level consumption — all driven by
-season-aware weather. A data pipeline automatically transforms the raw
-tick-level output into dashboard-ready datasets, and the dashboard
-visualises production vs. consumption, the duck curve, economics, adoption
-rates, battery utilisation and more — all filterable by type, wealth,
-strategy and time granularity.
+adoption, and stochastic appliance-level consumption — driven by real NSRDB
+weather data (with a synthetic fallback if the dataset is missing). A data
+pipeline automatically transforms the raw tick-level output into dashboard-ready
+datasets, and the dashboard visualises production vs. consumption, the duck
+curve, economics, adoption rates, battery utilisation and more — all filterable
+by type, wealth, strategy and time granularity.
+
+> **Branch:** Use the `machine-learning` branch — it has the neighborhood
+> simulator, React dashboard, and ML pipeline. `main` is the older single-home
+> simulator without this work.
 
 ## Project structure
 
@@ -53,6 +57,7 @@ SG1_Team5/
 ```bash
 git clone https://github.com/ehinojosa04/SG1_Team5
 cd SG1_Team5
+git checkout machine-learning
 
 # Simulator
 python3 -m venv venv
@@ -65,8 +70,8 @@ npm install
 cd ..
 ```
 
-`requirements.txt` installs `simpy` and `pandas`. The dashboard uses `vite`,
-`react`, `d3`, and `tailwindcss` — see `dashboard/package.json`.
+`requirements.txt` installs `simpy`, `pandas`, and `matplotlib`. The dashboard
+uses `vite`, `react`, `d3`, and `tailwindcss` — see `dashboard/package.json`.
 
 ## Running the simulator
 
@@ -75,7 +80,7 @@ resolve correctly.
 
 ```bash
 cd simulation
-python simulation.py
+python3 simulation.py
 ```
 
 This will:
@@ -103,9 +108,9 @@ that can run all household types and wealth levels in one go, just with
 different adoption probabilities:
 
 ```bash
-GG_SCENARIO=baseline        python simulation.py    # default
-GG_SCENARIO=high_adoption   python simulation.py    # most homes have solar+battery
-GG_SCENARIO=low_adoption    python simulation.py    # pre-incentives world
+GG_SCENARIO=baseline        python3 simulation.py    # default
+GG_SCENARIO=high_adoption   python3 simulation.py    # most homes have solar+battery
+GG_SCENARIO=low_adoption    python3 simulation.py    # pre-incentives world
 ```
 
 You can add your own scenario by extending the `SCENARIOS` dict in
@@ -122,7 +127,7 @@ the dashboard datasets:
 
 ```bash
 cd simulation
-python data_pipeline.py
+python3 data_pipeline.py
 ```
 
 ## Running the dashboard
@@ -135,9 +140,9 @@ npm run dev
 ```
 
 Vite opens the dashboard at <http://localhost:5173>. The dev server serves
-`dashboard/data/*.csv` under the `/data/*` URL via a small middleware in
-`vite.config.ts`, so you can just re-run the simulator and reload the page
-to see fresh numbers.
+`dashboard/data/*.csv` under `/data/*` and `simulation/ml_artifacts/*` under
+`/ml-data/*` via middleware in `vite.config.ts`, so you can re-run the simulator
+and reload the page to see fresh numbers.
 
 To produce a static build:
 
@@ -171,25 +176,25 @@ scales, tooltips and dark-mode styling.
 
 ## ML pipeline (gradient descent, no scikit-learn)
 
-The neighborhood simulator can drive solar generation from a trained
-polynomial regression model instead of the synthetic sine curve. Set
-`SOLAR_MODEL_MODE = "ml"` in `config.py` after training.
+The neighborhood simulator drives solar generation from a trained polynomial
+regression model by default (`SOLAR_MODEL_MODE = "ml"` in `config.py`).
+`ml/model_coefficients.json` is already committed; set `"synthetic"` to fall
+back to the sine curve.
 
 All commands run from `simulation/`:
 
 ```bash
 # Prepare + clean NSRDB data (writes ml/cleaned_data.csv)
-python ml/data_prep.py
+python3 ml/data_prep.py
 
 # Train linear + polynomial models (writes ml/model_coefficients.json)
-python ml/train.py
+python3 ml/train.py
 
-# Legacy dashboard ML tab data (writes ml_artifacts/ for the React ML Data tab)
-python ml/prepare_data.py
+# Dashboard ML Data tab (writes ml_artifacts/ for /ml-data/*)
+python3 ml/prepare_data.py
 ```
 
 Training results (test set): Linear R²=0.228, Polynomial R²=0.328 (active model).
-See `HANDOFF.md` for full session notes and report checklist.
 
 ## Key configuration
 
@@ -229,7 +234,9 @@ Written by `simulation/data_pipeline.py` to `dashboard/data/`:
 ## Troubleshooting
 
 - **Dashboard shows "Could not load data"**: run the simulator first
-  (`cd simulation && python simulation.py`) so `dashboard/data/` is populated.
+  (`cd simulation && python3 simulation.py`) so `dashboard/data/` is populated.
+- **ML Data tab is empty**: run `python3 ml/prepare_data.py` from `simulation/`
+  to generate files in `simulation/ml_artifacts/`.
 - **Changed the scenario but the dashboard hasn't updated**: re-run the
   simulator with the desired `GG_SCENARIO` env var, then reload the page.
 - **Charts are empty after filtering**: filters intersect — loosen the

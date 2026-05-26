@@ -175,7 +175,7 @@ def main():
         json.dump(payload, f, indent=2)
 
     print(f"\n  Coefficients saved → {COEFFICIENTS_FILE}")
-    print("  Run python simulation.py to start the neighborhood simulation with the ML model.\n")
+    print("  Run python3 simulation.py to start the neighborhood simulation with the ML model.\n")
 
 
 if __name__ == '__main__':
